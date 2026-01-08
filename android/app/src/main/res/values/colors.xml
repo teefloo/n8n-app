@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- n8n Brand Colors -->
+    <color name="n8n_primary">#FF6D5A</color>
+    <color name="n8n_primary_variant">#E85A48</color>
+    <color name="n8n_secondary">#1A1A2E</color>
+    <color name="n8n_accent">#00D9C0</color>
+    
+    <!-- Status Colors -->
+    <color name="status_success">#10B981</color>
+    <color name="status_error">#EF4444</color>
+    <color name="status_warning">#F59E0B</color>
+    <color name="status_info">#3B82F6</color>
+    <color name="status_running">#8B5CF6</color>
+    
+    <!-- Neutral Colors -->
+    <color name="background_light">#FAFAFA</color>
+    <color name="surface_light">#FFFFFF</color>
+    <color name="text_primary_light">#1A1A2E</color>
+    <color name="text_secondary_light">#6B7280</color>
+    
+    <color name="background_dark">#0F0F23</color>
+    <color name="surface_dark">#1A1A2E</color>
+    <color name="text_primary_dark">#F9FAFB</color>
+    <color name="text_secondary_dark">#9CA3AF</color>
+    
+    <!-- Splash -->
+    <color name="splash_background">#1A1A2E</color>
+</resources>
