@@ -15,6 +15,11 @@ import javax.inject.Singleton
 
 private const val TAG = "N8nRepository"
 
+data class PaginatedExecutions(
+    val executions: List<Execution>,
+    val nextCursor: String?
+)
+
 /**
  * Repository principal pour accéder aux données n8n
  */
@@ -179,22 +184,92 @@ class N8nRepository @Inject constructor(
     
     // ==================== Executions ====================
     
-    suspend fun getExecutions(
+    /**
+     * Récupère une page d'exécutions
+     */
+    suspend fun getExecutionsPage(
         workflowId: String? = null,
         status: ExecutionStatus? = null,
-        limit: Int = 50
-    ): Result<List<Execution>> {
+        limit: Int = 50,
+        cursor: String? = null
+    ): Result<PaginatedExecutions> {
         return withApiService { apiService ->
             val response = apiService.getExecutions(
                 workflowId = workflowId,
                 status = status?.name?.lowercase(),
-                limit = limit
+                limit = limit,
+                cursor = cursor
             )
+            
             if (response.isSuccessful) {
-                val executions = response.body()?.data?.map { it.toExecution() } ?: emptyList()
-                Result.success(executions)
+                val body = response.body()
+                val executions = body?.data?.map { it.toExecution() } ?: emptyList()
+                Result.success(PaginatedExecutions(executions, body?.nextCursor))
             } else {
-                Result.failure(Exception("Failed to fetch executions: ${response.code()}"))
+                Result.failure(Exception("Failed to fetch executions page: ${response.code()}"))
+            }
+        }
+    }
+
+    /**
+     * Récupère les exécutions avec pagination pour obtenir toutes les données.
+     * Si fetchAll est true, récupère toutes les exécutions via pagination.
+     * Sinon, retourne seulement le nombre spécifié par limit.
+     */
+    suspend fun getExecutions(
+        workflowId: String? = null,
+        status: ExecutionStatus? = null,
+        limit: Int = 50,
+        fetchAll: Boolean = true
+    ): Result<List<Execution>> {
+        return withApiService { apiService ->
+            if (fetchAll) {
+                // Récupérer TOUTES les exécutions via pagination
+                val allExecutions = mutableListOf<Execution>()
+                var cursor: String? = null
+                var pageCount = 0
+                val maxPages = 20 // Limite augmentée (env. 5000 items max)
+                
+                Log.d(TAG, "getExecutions: Fetching all executions with pagination...")
+                
+                do {
+                    val response = apiService.getExecutions(
+                        workflowId = workflowId,
+                        status = status?.name?.lowercase(),
+                        limit = 250,
+                        cursor = cursor
+                    )
+                    
+                    if (!response.isSuccessful) {
+                        Log.e(TAG, "getExecutions: Failed at page $pageCount, code=${response.code()}")
+                        return@withApiService Result.failure(Exception("Failed to fetch executions: ${response.code()}"))
+                    }
+                    
+                    val body = response.body()
+                    val executions = body?.data?.map { it.toExecution() } ?: emptyList()
+                    allExecutions.addAll(executions)
+                    cursor = body?.nextCursor
+                    pageCount++
+                    
+                    Log.d(TAG, "getExecutions: Page $pageCount - ${executions.size} items, total: ${allExecutions.size}, nextCursor: ${cursor != null}")
+                    
+                } while (cursor != null && pageCount < maxPages)
+                
+                Log.d(TAG, "getExecutions: Complete! Total ${allExecutions.size} executions fetched")
+                Result.success(allExecutions)
+            } else {
+                // Mode simple sans pagination
+                val response = apiService.getExecutions(
+                    workflowId = workflowId,
+                    status = status?.name?.lowercase(),
+                    limit = limit
+                )
+                if (response.isSuccessful) {
+                    val executions = response.body()?.data?.map { it.toExecution() } ?: emptyList()
+                    Result.success(executions)
+                } else {
+                    Result.failure(Exception("Failed to fetch executions: ${response.code()}"))
+                }
             }
         }
     }
@@ -300,33 +375,127 @@ class N8nRepository @Inject constructor(
     
     // ==================== Stats ====================
     
-    suspend fun getInstanceStats(): Result<InstanceStats> {
+    suspend fun getInstanceStats(startDate: Long? = null): Result<InstanceStats> {
         return withApiService { apiService ->
             try {
+                Log.d(TAG, "getInstanceStats: Fetching all stats (startDate=$startDate)...")
+                
                 val workflowsResponse = apiService.getWorkflows()
                 val activeWorkflowsResponse = apiService.getWorkflows(active = true)
-                val executionsResponse = apiService.getExecutions(limit = 100)
                 
                 val workflows = workflowsResponse.body()?.data ?: emptyList()
                 val activeWorkflows = activeWorkflowsResponse.body()?.data ?: emptyList()
-                val executions = executionsResponse.body()?.data?.map { it.toExecution() } ?: emptyList()
                 
-                val successCount = executions.count { it.status == ExecutionStatus.SUCCESS }
-                val failedCount = executions.count { it.status == ExecutionStatus.ERROR }
+                // Récupérer toutes les exécutions pour les stats (pagination)
+                val allExecutions = mutableListOf<Execution>()
+                var statsCursor: String? = null
+                var statsPageCount = 0
+                val maxStatsPages = 40 // 40 * 250 = 10000 exécutions max pour les stats (augmenté pour plus de précision)
+                
+                do {
+                    try {
+                        val executionsResponse = apiService.getExecutions(limit = 250, cursor = statsCursor)
+                        if (!executionsResponse.isSuccessful) {
+                            Log.w(TAG, "getInstanceStats: Failed to fetch page $statsPageCount, stopping pagination")
+                            break
+                        }
+                        val body = executionsResponse.body()
+                        val executions = body?.data?.map { it.toExecution() } ?: emptyList()
+                        allExecutions.addAll(executions)
+                        statsCursor = body?.nextCursor
+                        statsPageCount++
+                        Log.d(TAG, "getInstanceStats: Page $statsPageCount fetched, ${executions.size} items, total: ${allExecutions.size}")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "getInstanceStats: Error fetching page $statsPageCount, using data collected so far", e)
+                        break
+                    }
+                } while (statsCursor != null && statsPageCount < maxStatsPages)
+                
+                Log.d(TAG, "getInstanceStats: Fetched ${allExecutions.size} executions for stats")
+                
+                // Filtrer par date si nécessaire
+                val statsExecutions = if (startDate != null) {
+                    allExecutions.filter { exec ->
+                        val time = parseDateToMillis(exec.startedAt)
+                        time != null && time >= startDate
+                    }
+                } else {
+                    allExecutions
+                }
+                
+                Log.d(TAG, "getInstanceStats: Calculating stats on ${statsExecutions.size} executions (filtered from ${allExecutions.size})")
+                
+                val successCount = statsExecutions.count { it.status == ExecutionStatus.SUCCESS }
+                val failedCount = statsExecutions.count { it.status == ExecutionStatus.ERROR || it.status == ExecutionStatus.CRASHED }
+                
+                // Calculer le temps moyen d'exécution
+                val executionsWithDuration = statsExecutions.filter { it.stoppedAt != null }
+                val avgExecutionTime = if (executionsWithDuration.isNotEmpty()) {
+                    calculateAverageExecutionTime(executionsWithDuration)
+                } else 0L
+                
+                Log.d(TAG, "getInstanceStats: Success=$successCount, Failed=$failedCount, AvgTime=${avgExecutionTime}ms")
                 
                 Result.success(
                     InstanceStats(
                         totalWorkflows = workflows.size,
                         activeWorkflows = activeWorkflows.size,
-                        totalExecutions = executions.size,
+                        totalExecutions = statsExecutions.size,
+                        isTotalExecutionsEstimated = statsCursor != null,
                         successfulExecutions = successCount,
-                        failedExecutions = failedCount
+                        failedExecutions = failedCount,
+                        averageExecutionTime = avgExecutionTime
                     )
                 )
             } catch (e: Exception) {
+                Log.e(TAG, "getInstanceStats: Error", e)
                 Result.failure(e)
             }
         }
+    }
+    
+    private fun parseDateToMillis(dateString: String): Long? {
+        val dateFormats = listOf(
+            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault()).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            },
+            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.getDefault()),
+            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.getDefault()).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            },
+            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+        )
+        
+        for (format in dateFormats) {
+            try {
+                return format.parse(dateString)?.time
+            } catch (e: Exception) {
+                // Continue
+            }
+        }
+        return null
+    }
+
+    private fun calculateAverageExecutionTime(executions: List<Execution>): Long {
+        var totalDuration = 0L
+        var count = 0
+        
+        for (exec in executions) {
+            if (exec.startedAt.isBlank() || exec.stoppedAt.isNullOrBlank()) continue
+            
+            val startTime = parseDateToMillis(exec.startedAt)
+            val stopTime = parseDateToMillis(exec.stoppedAt)
+            
+            if (startTime != null && stopTime != null) {
+                val duration = stopTime - startTime
+                if (duration > 0) {
+                    totalDuration += duration
+                    count++
+                }
+            }
+        }
+        
+        return if (count > 0) totalDuration / count else 0L
     }
     
     // ==================== Helper ====================

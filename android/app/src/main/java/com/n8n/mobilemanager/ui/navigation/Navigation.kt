@@ -1,12 +1,17 @@
 package com.n8n.mobilemanager.ui.navigation
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -32,8 +37,10 @@ import com.n8n.mobilemanager.data.repository.N8nRepository
 import com.n8n.mobilemanager.ui.screens.credentials.CredentialsScreen
 import com.n8n.mobilemanager.ui.screens.dashboard.DashboardScreen
 import com.n8n.mobilemanager.ui.screens.executions.ExecutionsScreen
+import com.n8n.mobilemanager.ui.screens.executions.ExecutionDetailScreen
 import com.n8n.mobilemanager.ui.screens.login.LoginScreen
 import com.n8n.mobilemanager.ui.screens.settings.SettingsScreen
+import com.n8n.mobilemanager.ui.screens.workflows.WorkflowDetailScreen
 import com.n8n.mobilemanager.ui.screens.workflows.WorkflowsScreen
 import com.n8n.mobilemanager.ui.theme.*
 
@@ -156,20 +163,49 @@ fun N8nNavigation(
             startDestination = Screen.Login.route,
             modifier = Modifier.padding(paddingValues),
             enterTransition = {
+                // Déterminer la direction en fonction de l'ordre des écrans
+                val fromIndex = bottomNavScreens.indexOfFirst { it.route == initialState.destination.route }
+                val toIndex = bottomNavScreens.indexOfFirst { it.route == targetState.destination.route }
+                val direction = if (fromIndex != -1 && toIndex != -1 && toIndex < fromIndex) {
+                    AnimatedContentTransitionScope.SlideDirection.End // Aller vers la gauche = slide depuis la droite
+                } else {
+                    AnimatedContentTransitionScope.SlideDirection.Start // Aller vers la droite = slide depuis la gauche
+                }
                 fadeIn(animationSpec = tween(300)) + 
-                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(300))
+                slideIntoContainer(direction, tween(300))
             },
             exitTransition = {
+                val fromIndex = bottomNavScreens.indexOfFirst { it.route == initialState.destination.route }
+                val toIndex = bottomNavScreens.indexOfFirst { it.route == targetState.destination.route }
+                val direction = if (fromIndex != -1 && toIndex != -1 && toIndex < fromIndex) {
+                    AnimatedContentTransitionScope.SlideDirection.End
+                } else {
+                    AnimatedContentTransitionScope.SlideDirection.Start
+                }
                 fadeOut(animationSpec = tween(300)) + 
-                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(300))
+                slideOutOfContainer(direction, tween(300))
             },
             popEnterTransition = {
+                val fromIndex = bottomNavScreens.indexOfFirst { it.route == initialState.destination.route }
+                val toIndex = bottomNavScreens.indexOfFirst { it.route == targetState.destination.route }
+                val direction = if (fromIndex != -1 && toIndex != -1 && toIndex > fromIndex) {
+                    AnimatedContentTransitionScope.SlideDirection.Start
+                } else {
+                    AnimatedContentTransitionScope.SlideDirection.End
+                }
                 fadeIn(animationSpec = tween(300)) + 
-                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(300))
+                slideIntoContainer(direction, tween(300))
             },
             popExitTransition = {
+                val fromIndex = bottomNavScreens.indexOfFirst { it.route == initialState.destination.route }
+                val toIndex = bottomNavScreens.indexOfFirst { it.route == targetState.destination.route }
+                val direction = if (fromIndex != -1 && toIndex != -1 && toIndex > fromIndex) {
+                    AnimatedContentTransitionScope.SlideDirection.Start
+                } else {
+                    AnimatedContentTransitionScope.SlideDirection.End
+                }
                 fadeOut(animationSpec = tween(300)) + 
-                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(300))
+                slideOutOfContainer(direction, tween(300))
             }
         ) {
             // Login
@@ -216,10 +252,11 @@ fun N8nNavigation(
             // Workflow Detail
             composable(Screen.WorkflowDetail.route) { backStackEntry ->
                 val workflowId = backStackEntry.arguments?.getString("workflowId") ?: ""
-                // TODO: WorkflowDetailScreen
-                WorkflowsScreen(
-                    onNavigateToWorkflow = {},
-                    onNavigateBack = { navController.popBackStack() }
+                WorkflowDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToExecution = { executionId ->
+                        navController.navigate(Screen.ExecutionDetail.createRoute(executionId))
+                    }
                 )
             }
             
@@ -236,12 +273,12 @@ fun N8nNavigation(
             }
             
             // Execution Detail
-            composable(Screen.ExecutionDetail.route) { backStackEntry ->
-                val executionId = backStackEntry.arguments?.getString("executionId") ?: ""
-                // TODO: ExecutionDetailScreen
-                ExecutionsScreen(
-                    onNavigateToExecution = {},
-                    onNavigateBack = { navController.popBackStack() }
+            composable(Screen.ExecutionDetail.route) {
+                ExecutionDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToExecution = { executionId ->
+                        navController.navigate(Screen.ExecutionDetail.createRoute(executionId))
+                    }
                 )
             }
             
@@ -285,118 +322,164 @@ private fun NeumorphicBottomNavBar(
     currentRoute: String?
 ) {
     val neumorphColors = neumorphicColors()
+    val selectedIndex = bottomNavScreens.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
     
+    // Animation fluide de l'indicateur
+    val animatedIndex by animateFloatAsState(
+        targetValue = selectedIndex.toFloat(),
+        animationSpec = spring(
+            dampingRatio = 0.7f,
+            stiffness = 150f
+        ),
+        label = "indicator_position"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = 24.dp, vertical = 20.dp),
+        contentAlignment = Alignment.BottomCenter
     ) {
+        // Barre flottante avec ombre neumorphique
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .height(72.dp)
                 .neumorphicShadow(
                     lightShadowColor = neumorphColors.lightShadow,
                     darkShadowColor = neumorphColors.darkShadow,
-                    shadowOffset = 6.dp,
-                    shadowRadius = 12.dp,
+                    shadowOffset = 8.dp,
+                    shadowRadius = 16.dp,
                     cornerRadius = 28.dp
                 )
                 .clip(RoundedCornerShape(28.dp))
-                .background(neumorphColors.surface)
-                .padding(vertical = 8.dp, horizontal = 8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                bottomNavScreens.forEach { screen ->
-                    val isSelected = currentRoute == screen.route
-                    
-                    NeumorphicNavItem(
-                        screen = screen,
-                        isSelected = isSelected,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            neumorphColors.surface,
+                            neumorphColors.surface.copy(alpha = 0.98f)
+                        )
                     )
+                )
+        ) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
+                val itemWidth = maxWidth / bottomNavScreens.size
+                
+                // Indicateur glissant avec dégradé
+                Box(
+                    modifier = Modifier
+                        .offset(x = itemWidth * animatedIndex)
+                        .width(itemWidth)
+                        .fillMaxHeight()
+                        .padding(vertical = 10.dp, horizontal = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        N8nPrimary.copy(alpha = 0.15f),
+                                        N8nPrimaryLight.copy(alpha = 0.08f)
+                                    )
+                                )
+                            )
+                    )
+                }
+
+                // Items de navigation
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    bottomNavScreens.forEachIndexed { index, screen ->
+                        val isSelected = index == selectedIndex
+                        
+                        // Animations pour chaque item
+                        val scale by animateFloatAsState(
+                            targetValue = if (isSelected) 1.1f else 1f,
+                            animationSpec = spring(
+                                dampingRatio = 0.6f,
+                                stiffness = 300f
+                            ),
+                            label = "icon_scale_$index"
+                        )
+                        
+                        val iconColor by animateColorAsState(
+                            targetValue = if (isSelected) N8nPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                            animationSpec = tween(250),
+                            label = "icon_color_$index"
+                        )
+                        
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = {
+                                        if (!isSelected) {
+                                            navController.navigate(screen.route) {
+                                                popUpTo(navController.graph.findStartDestination().id) {
+                                                    saveState = true
+                                                }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        }
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.graphicsLayer {
+                                    scaleX = scale
+                                    scaleY = scale
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (isSelected) screen.iconFilled else screen.iconOutlined,
+                                    contentDescription = screen.title,
+                                    tint = iconColor,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                
+                                // Label animé qui apparaît quand sélectionné
+                                AnimatedVisibility(
+                                    visible = isSelected,
+                                    enter = fadeIn(tween(200)) + expandVertically(tween(200)),
+                                    exit = fadeOut(tween(150)) + shrinkVertically(tween(150))
+                                ) {
+                                    Text(
+                                        text = getShortLabel(screen),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = N8nPrimary,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-@Composable
-private fun NeumorphicNavItem(
-    screen: Screen,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    
-    Column(
-        modifier = modifier
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-            .padding(vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    if (isSelected) {
-                        Brush.linearGradient(
-                            colors = listOf(
-                                N8nPrimary.copy(alpha = 0.15f),
-                                N8nPrimary.copy(alpha = 0.25f)
-                            )
-                        )
-                    } else {
-                        Brush.linearGradient(
-                            colors = listOf(
-                                androidx.compose.ui.graphics.Color.Transparent,
-                                androidx.compose.ui.graphics.Color.Transparent
-                            )
-                        )
-                    }
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (isSelected) screen.iconFilled else screen.iconOutlined,
-                contentDescription = screen.title,
-                tint = if (isSelected) N8nPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        AnimatedVisibility(
-            visible = isSelected,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Text(
-                text = screen.title.split(" ").first(),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = N8nPrimary
-            )
-        }
+// Labels courts pour la barre de navigation
+private fun getShortLabel(screen: Screen): String {
+    return when (screen) {
+        Screen.Dashboard -> "Home"
+        Screen.Workflows -> "Flows"
+        Screen.Executions -> "Runs"
+        Screen.Credentials -> "Keys"
+        else -> screen.title.take(5)
     }
 }

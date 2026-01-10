@@ -204,7 +204,9 @@ private fun formatCredentialType(type: String): String {
 private fun formatDate(dateString: String): String {
     return try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        inputFormat.timeZone = TimeZone.getTimeZone("UTC")
         val outputFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        outputFormat.timeZone = TimeZone.getDefault()
         val date = inputFormat.parse(dateString)
         date?.let { outputFormat.format(it) } ?: dateString
     } catch (e: Exception) {

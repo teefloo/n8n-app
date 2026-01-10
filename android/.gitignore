@@ -97,3 +97,61 @@ obj/
 
 # Node modules (if using any JS tooling)
 node_modules/
+
+# Kotlin
+*.kotlin_module
+
+# Compose Compiler Reports
+compose_compiler/
+**/compose_metrics/
+**/compose_reports/
+
+# Hilt/Dagger generated files
+**/hilt_aggregated_deps/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Signing configs
+signing.properties
+keystore.properties
+
+# Crash reports
+crash_reports/
+
+# Coverage reports
+coverage/
+*.exec
+jacoco.exec
+
+# Benchmark results
+benchmarks/
+
+# IDE specific
+.idea/appInsightsSettings.xml
+.idea/kotlinc.xml
+.idea/migrations.xml
+.idea/inspectionProfiles/
+.idea/runConfigurations/
+.idea/navEditor.xml
+.idea/render.experimental.xml
+
+# Gemini/AI agent
+.agent/
+
+# APK output
+app/release/
+app/debug/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
+
+# Profiler captures
+*.hprof
+*.trace

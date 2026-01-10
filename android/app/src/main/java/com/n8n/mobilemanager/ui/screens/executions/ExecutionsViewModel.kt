@@ -13,12 +13,14 @@ import javax.inject.Inject
 
 data class ExecutionsUiState(
     val isLoading: Boolean = true,
+    val isLoadingMore: Boolean = false,
     val error: String? = null,
-    val executions: List<Execution> = emptyList(),
-    val filteredExecutions: List<Execution> = emptyList(),
+    val executions: List<Execution> = emptyList(), // Accumulates all loaded executions
+    val filteredExecutions: List<Execution> = emptyList(), // Same as executions in this context (filters are applied API side)
     val workflows: List<Workflow> = emptyList(),
     val selectedWorkflowId: String? = null,
-    val selectedStatus: ExecutionStatus? = null
+    val selectedStatus: ExecutionStatus? = null,
+    val nextCursor: String? = null
 )
 
 @HiltViewModel
@@ -45,25 +47,35 @@ class ExecutionsViewModel @Inject constructor(
                 onFailure = { /* Ignore, optional */ }
             )
             
-            // Load executions
-            loadExecutions()
+            // Load initial executions
+            loadExecutions(cursor = null)
         }
     }
 
-    private suspend fun loadExecutions() {
+    private suspend fun loadExecutions(cursor: String?) {
         val state = _uiState.value
         
-        repository.getExecutions(
+        // Use pagination
+        repository.getExecutionsPage(
             workflowId = state.selectedWorkflowId,
             status = state.selectedStatus,
-            limit = 100
+            limit = 20, // Load 20 items per page
+            cursor = cursor
         ).fold(
-            onSuccess = { executions ->
-                _uiState.update { 
-                    it.copy(
-                        executions = executions,
-                        filteredExecutions = executions,
-                        isLoading = false
+            onSuccess = { page ->
+                _uiState.update { currentState ->
+                    val newExecutions = if (cursor == null) {
+                        page.executions // Reset list if loading first page
+                    } else {
+                        currentState.executions + page.executions // Append if loading more
+                    }
+                    
+                    currentState.copy(
+                        executions = newExecutions,
+                        filteredExecutions = newExecutions,
+                        nextCursor = page.nextCursor,
+                        isLoading = false,
+                        isLoadingMore = false
                     )
                 }
             },
@@ -71,24 +83,47 @@ class ExecutionsViewModel @Inject constructor(
                 _uiState.update { 
                     it.copy(
                         error = error.message,
-                        isLoading = false
+                        isLoading = false,
+                        isLoadingMore = false
                     )
                 }
             }
         )
     }
 
+    fun loadNextPage() {
+        val state = _uiState.value
+        if (state.isLoading || state.isLoadingMore || state.nextCursor == null) return
+        
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMore = true) }
+            loadExecutions(state.nextCursor)
+        }
+    }
+
     fun setWorkflowFilter(workflowId: String?) {
         viewModelScope.launch {
-            _uiState.update { it.copy(selectedWorkflowId = workflowId, isLoading = true) }
-            loadExecutions()
+            _uiState.update { 
+                it.copy(
+                    selectedWorkflowId = workflowId, 
+                    isLoading = true,
+                    nextCursor = null // Reset cursor
+                ) 
+            }
+            loadExecutions(null)
         }
     }
 
     fun setStatusFilter(status: ExecutionStatus?) {
         viewModelScope.launch {
-            _uiState.update { it.copy(selectedStatus = status, isLoading = true) }
-            loadExecutions()
+            _uiState.update { 
+                it.copy(
+                    selectedStatus = status, 
+                    isLoading = true,
+                    nextCursor = null // Reset cursor
+                ) 
+            }
+            loadExecutions(null)
         }
     }
 
@@ -96,7 +131,9 @@ class ExecutionsViewModel @Inject constructor(
         viewModelScope.launch {
             repository.retryExecution(executionId).fold(
                 onSuccess = {
-                    loadExecutions()
+                    // Reload data to reflect status change
+                    // Ideally we should just update the single item locally
+                    loadExecutions(null) 
                 },
                 onFailure = { error ->
                     _uiState.update { it.copy(error = "Échec: ${error.message}") }
@@ -109,7 +146,7 @@ class ExecutionsViewModel @Inject constructor(
         viewModelScope.launch {
             repository.stopExecution(executionId).fold(
                 onSuccess = {
-                    loadExecutions()
+                    loadExecutions(null)
                 },
                 onFailure = { error ->
                     _uiState.update { it.copy(error = "Échec: ${error.message}") }

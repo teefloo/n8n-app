@@ -126,24 +126,24 @@ enum class ExecutionMode {
  * Statut d'une exécution
  */
 enum class ExecutionStatus {
-    NEW,
     RUNNING,
     SUCCESS,
     ERROR,
     CANCELED,
     WAITING,
-    CRASHED;
+    CRASHED,
+    QUEUED;
     
     companion object {
         fun fromString(value: String): ExecutionStatus {
             return when (value.lowercase()) {
-                "new" -> NEW
                 "running" -> RUNNING
                 "success" -> SUCCESS
                 "error" -> ERROR
                 "canceled" -> CANCELED
                 "waiting" -> WAITING
                 "crashed" -> CRASHED
+                "queued" -> QUEUED
                 else -> ERROR
             }
         }
@@ -216,6 +216,7 @@ data class InstanceStats(
     val totalWorkflows: Int = 0,
     val activeWorkflows: Int = 0,
     val totalExecutions: Int = 0,
+    val isTotalExecutionsEstimated: Boolean = false,
     val successfulExecutions: Int = 0,
     val failedExecutions: Int = 0,
     val averageExecutionTime: Long = 0,

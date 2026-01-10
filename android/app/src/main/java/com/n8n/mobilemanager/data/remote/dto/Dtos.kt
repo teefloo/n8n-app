@@ -97,7 +97,7 @@ data class ExecutionDto(
     val finished: Boolean,
     val mode: String,
     val status: String? = null,
-    val startedAt: String,
+    val startedAt: String? = null,
     val stoppedAt: String? = null,
     val data: ExecutionDataDto? = null,
     val retryOf: String? = null,
@@ -111,7 +111,7 @@ data class ExecutionDto(
         mode = ExecutionMode.fromString(mode),
         status = status?.let { ExecutionStatus.fromString(it) } 
             ?: if (finished) ExecutionStatus.SUCCESS else ExecutionStatus.RUNNING,
-        startedAt = startedAt,
+        startedAt = startedAt ?: "",
         stoppedAt = stoppedAt,
         retryOf = retryOf,
         retrySuccessId = retrySuccessId

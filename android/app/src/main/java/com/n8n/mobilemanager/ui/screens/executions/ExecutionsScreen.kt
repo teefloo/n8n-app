@@ -127,6 +127,30 @@ fun ExecutionsScreen(
                                 onStop = { viewModel.stopExecution(execution.id) }
                             )
                         }
+
+                        // Infinite scroll trigger
+                        item {
+                            LaunchedEffect(true) {
+                                viewModel.loadNextPage()
+                            }
+                        }
+                        
+                        if (uiState.isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = N8nPrimary,
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                            }
+                        }
                         
                         item {
                             Spacer(modifier = Modifier.height(60.dp))
@@ -424,10 +448,21 @@ private fun NeumorphicStatusFilterContent(
             onClick = { onStatusSelected(null) }
         )
         
-        ExecutionStatus.entries.forEach { status ->
+        val filterableStatuses = listOf(
+            ExecutionStatus.ERROR,
+            ExecutionStatus.CANCELED,
+            ExecutionStatus.QUEUED,
+            ExecutionStatus.RUNNING,
+            ExecutionStatus.SUCCESS,
+            ExecutionStatus.WAITING
+        )
+        
+        filterableStatuses.forEach { status ->
+            val label = status.name.lowercase().replaceFirstChar { it.uppercase() }
+            
             NeumorphicStatusFilterOption(
                 status = status,
-                label = status.name.lowercase().replaceFirstChar { it.uppercase() },
+                label = label,
                 isSelected = currentStatus == status,
                 onClick = { onStatusSelected(status) }
             )
@@ -654,11 +689,35 @@ private fun NeumorphicWorkflowFilterContent(
 }
 
 private fun formatDateTime(dateString: String): String {
+    if (dateString.isBlank()) return "—"
+    
     return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
         val outputFormat = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
-        val date = inputFormat.parse(dateString)
-        date?.let { outputFormat.format(it) } ?: dateString
+        outputFormat.timeZone = TimeZone.getDefault()
+        
+        // Essayer plusieurs formats de date
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" to TimeZone.getTimeZone("UTC"),
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX" to null,
+            "yyyy-MM-dd'T'HH:mm:ss.SSS" to TimeZone.getTimeZone("UTC"),
+            "yyyy-MM-dd'T'HH:mm:ss'Z'" to TimeZone.getTimeZone("UTC"),
+            "yyyy-MM-dd'T'HH:mm:ss" to TimeZone.getTimeZone("UTC")
+        )
+        
+        for ((pattern, tz) in formats) {
+            try {
+                val inputFormat = SimpleDateFormat(pattern, Locale.getDefault())
+                if (tz != null) inputFormat.timeZone = tz
+                val date = inputFormat.parse(dateString)
+                if (date != null) {
+                    return outputFormat.format(date)
+                }
+            } catch (e: Exception) {
+                // Essayer le format suivant
+            }
+        }
+        
+        dateString
     } catch (e: Exception) {
         dateString
     }

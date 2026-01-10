@@ -91,6 +91,7 @@ fun NeumorphicCard(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 24.dp,
     isPressed: Boolean = false,
+    backgroundColor: Color? = null,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -115,7 +116,7 @@ fun NeumorphicCard(
                 isPressed = actualPressed
             )
             .clip(RoundedCornerShape(cornerRadius))
-            .background(neumorphColors.surface)
+            .background(backgroundColor ?: neumorphColors.surface)
             .then(
                 if (onClick != null) {
                     Modifier.clickable(
@@ -305,7 +306,7 @@ fun ExecutionStatusChip(
         ExecutionStatus.WAITING -> Triple(StatusWarningMuted.copy(alpha = 0.4f), StatusWarning, Icons.Filled.Schedule)
         ExecutionStatus.CANCELED -> Triple(StatusWarningMuted.copy(alpha = 0.4f), StatusWarning, Icons.Filled.Cancel)
         ExecutionStatus.CRASHED -> Triple(StatusErrorMuted.copy(alpha = 0.4f), StatusError, Icons.Filled.Warning)
-        ExecutionStatus.NEW -> Triple(StatusInfoMuted.copy(alpha = 0.4f), StatusInfo, Icons.Filled.FiberNew)
+        ExecutionStatus.QUEUED -> Triple(StatusInfoMuted.copy(alpha = 0.4f), StatusInfo, Icons.Filled.Queue)
     }
     
     Box(
@@ -968,6 +969,213 @@ fun NeumorphicTextField(
             trailingIcon?.let {
                 Spacer(modifier = Modifier.width(12.dp))
                 it()
+            }
+        }
+    }
+}
+
+// ==================== Neumorphic Progress Bar ====================
+
+@Composable
+fun NeumorphicProgressBar(
+    progress: Float,
+    modifier: Modifier = Modifier,
+    progressColor: Color = N8nPrimary,
+    height: Dp = 8.dp
+) {
+    val neumorphColors = neumorphicColors()
+    
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(height)
+            .neumorphicShadow(
+                lightShadowColor = neumorphColors.darkShadow.copy(alpha = 0.3f),
+                darkShadowColor = neumorphColors.lightShadow,
+                shadowOffset = 2.dp,
+                shadowRadius = 4.dp,
+                cornerRadius = height / 2,
+                isPressed = true
+            )
+            .clip(RoundedCornerShape(height / 2))
+            .background(neumorphColors.pressedBackground)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                .clip(RoundedCornerShape(height / 2))
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(progressColor, progressColor.copy(alpha = 0.8f))
+                    )
+                )
+        )
+    }
+}
+
+// ==================== Neumorphic Divider ====================
+
+@Composable
+fun NeumorphicDivider(
+    modifier: Modifier = Modifier
+) {
+    val neumorphColors = neumorphicColors()
+    
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(2.dp)
+            .background(neumorphColors.pressedBackground)
+    ) {
+        // Light edge on top
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(neumorphColors.lightShadow.copy(alpha = 0.5f))
+        )
+    }
+}
+
+// ==================== Neumorphic Section Header ====================
+
+@Composable
+fun NeumorphicSectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        icon?.let {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(N8nPrimary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = it,
+                    contentDescription = null,
+                    tint = N8nPrimary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+    }
+}
+
+// ==================== Neumorphic Circular Progress ====================
+
+@Composable
+fun NeumorphicCircularProgress(
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    strokeWidth: Dp = 4.dp,
+    color: Color = N8nPrimary
+) {
+    val neumorphColors = neumorphicColors()
+    
+    Box(
+        modifier = modifier
+            .size(size)
+            .neumorphicShadow(
+                lightShadowColor = neumorphColors.lightShadow,
+                darkShadowColor = neumorphColors.darkShadow,
+                shadowOffset = 4.dp,
+                cornerRadius = size / 2
+            )
+            .clip(CircleShape)
+            .background(neumorphColors.surface),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(size - 16.dp),
+            color = color,
+            strokeWidth = strokeWidth
+        )
+    }
+}
+
+// ==================== Neumorphic Chip ====================
+
+@Composable
+fun NeumorphicChip(
+    text: String,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    leadingIcon: ImageVector? = null,
+    trailingIcon: ImageVector? = null
+) {
+    val neumorphColors = neumorphicColors()
+    
+    val backgroundColor = if (selected) {
+        Brush.horizontalGradient(
+            colors = listOf(N8nPrimary.copy(alpha = 0.15f), N8nPrimary.copy(alpha = 0.25f))
+        )
+    } else {
+        Brush.horizontalGradient(
+            colors = listOf(neumorphColors.surface, neumorphColors.surface)
+        )
+    }
+    
+    val contentColor = if (selected) N8nPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    
+    Box(
+        modifier = modifier
+            .neumorphicShadow(
+                lightShadowColor = neumorphColors.lightShadow,
+                darkShadowColor = neumorphColors.darkShadow,
+                shadowOffset = if (selected) 2.dp else 4.dp,
+                cornerRadius = 12.dp,
+                isPressed = selected
+            )
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor)
+            .then(
+                if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+            )
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            leadingIcon?.let {
+                Icon(
+                    imageVector = it,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                color = contentColor
+            )
+            trailingIcon?.let {
+                Icon(
+                    imageVector = it,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }

@@ -2,6 +2,7 @@ package com.n8n.mobilemanager.ui.screens.dashboard
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -76,6 +77,14 @@ fun DashboardScreen(
                     )
                 }
             } else {
+                // Period Selector
+                item {
+                    StatsPeriodSelector(
+                        selectedPeriod = uiState.selectedPeriod,
+                        onPeriodSelected = { viewModel.setPeriod(it) }
+                    )
+                }
+
                 // Stats Grid
                 item {
                     StatsGrid(
@@ -83,6 +92,8 @@ fun DashboardScreen(
                         totalWorkflows = uiState.stats.totalWorkflows,
                         successfulExecutions = uiState.stats.successfulExecutions,
                         failedExecutions = uiState.stats.failedExecutions,
+                        averageExecutionTimeMs = uiState.stats.averageExecutionTime,
+                        isTotalExecutionsEstimated = uiState.stats.isTotalExecutionsEstimated,
                         onWorkflowsClick = onNavigateToWorkflows,
                         onExecutionsClick = onNavigateToExecutions
                     )
@@ -145,6 +156,63 @@ fun DashboardScreen(
 }
 
 @Composable
+private fun StatsPeriodSelector(
+    selectedPeriod: StatsPeriod,
+    onPeriodSelected: (StatsPeriod) -> Unit
+) {
+    val neumorphColors = neumorphicColors()
+    
+    NeumorphicCard(
+        modifier = Modifier.fillMaxWidth(),
+        cornerRadius = 16.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            StatsPeriod.values().forEach { period ->
+                val isSelected = period == selectedPeriod
+                
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (isSelected) {
+                                Brush.horizontalGradient(
+                                    colors = listOf(N8nPrimary, N8nPrimaryVariant)
+                                )
+                            } else {
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        neumorphColors.surface,
+                                        neumorphColors.surface
+                                    )
+                                )
+                            }
+                        )
+                        .clickable { onPeriodSelected(period) }
+                        .padding(vertical = 10.dp, horizontal = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = period.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) 
+                            androidx.compose.ui.graphics.Color.White 
+                        else 
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun DashboardHeader(
     instanceName: String,
     isOnline: Boolean,
@@ -195,6 +263,8 @@ private fun StatsGrid(
     totalWorkflows: Int,
     successfulExecutions: Int,
     failedExecutions: Int,
+    averageExecutionTimeMs: Long = 0,
+    isTotalExecutionsEstimated: Boolean = false,
     onWorkflowsClick: () -> Unit,
     onExecutionsClick: () -> Unit
 ) {
@@ -202,6 +272,9 @@ private fun StatsGrid(
     val failureRate = if (totalExecutions > 0) {
         (failedExecutions * 100f / totalExecutions)
     } else 0f
+    
+    // Formater le temps d'exécution moyen
+    val avgTimeFormatted = formatDuration(averageExecutionTimeMs)
     
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -221,7 +294,7 @@ private fun StatsGrid(
         ) {
             InsightCard(
                 title = "Total exécutions",
-                value = formatNumber(totalExecutions),
+                value = if (isTotalExecutionsEstimated) "${formatNumber(totalExecutions)}+" else formatNumber(totalExecutions),
                 icon = Icons.Filled.PlayCircle,
                 iconTint = N8nPrimary,
                 onClick = onExecutionsClick,
@@ -284,6 +357,23 @@ private fun StatsGrid(
                 modifier = Modifier.weight(1f)
             )
         }
+        
+        // Row 4: Average Execution Time (comme "Run time (avg.)" sur n8n)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            InsightCard(
+                title = "Temps moyen",
+                value = avgTimeFormatted,
+                subtitle = "par exécution",
+                icon = Icons.Filled.Timer,
+                iconTint = N8nAccent,
+                modifier = Modifier.weight(1f)
+            )
+            // Espace vide pour équilibrer
+            Spacer(modifier = Modifier.weight(1f))
+        }
     }
 }
 
@@ -321,9 +411,17 @@ private fun InsightCard(
                     maxLines = 1
                 )
                 
+                // Neumorphic icon container
                 Box(
                     modifier = Modifier
                         .size(36.dp)
+                        .neumorphicShadow(
+                            lightShadowColor = neumorphColors.lightShadow,
+                            darkShadowColor = neumorphColors.darkShadow,
+                            shadowOffset = 2.dp,
+                            shadowRadius = 4.dp,
+                            cornerRadius = 10.dp
+                        )
                         .clip(RoundedCornerShape(10.dp))
                         .background(
                             Brush.linearGradient(
@@ -359,14 +457,6 @@ private fun InsightCard(
                 )
             }
         }
-    }
-}
-
-private fun formatNumber(number: Int): String {
-    return when {
-        number >= 1000000 -> String.format("%.1fM", number / 1000000f)
-        number >= 1000 -> String.format("%.1fK", number / 1000f)
-        else -> number.toString()
     }
 }
 
@@ -526,11 +616,35 @@ private fun NeumorphicErrorCard(error: String) {
 // ==================== Utility Functions ====================
 
 private fun formatDateTime(dateString: String): String {
+    if (dateString.isBlank()) return "—"
+    
     return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
         val outputFormat = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
-        val date = inputFormat.parse(dateString)
-        date?.let { outputFormat.format(it) } ?: dateString
+        outputFormat.timeZone = TimeZone.getDefault()
+        
+        // Essayer plusieurs formats de date
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" to TimeZone.getTimeZone("UTC"),
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX" to null, // Format avec timezone
+            "yyyy-MM-dd'T'HH:mm:ss.SSS" to TimeZone.getTimeZone("UTC"),
+            "yyyy-MM-dd'T'HH:mm:ss'Z'" to TimeZone.getTimeZone("UTC"),
+            "yyyy-MM-dd'T'HH:mm:ss" to TimeZone.getTimeZone("UTC")
+        )
+        
+        for ((pattern, tz) in formats) {
+            try {
+                val inputFormat = SimpleDateFormat(pattern, Locale.getDefault())
+                if (tz != null) inputFormat.timeZone = tz
+                val date = inputFormat.parse(dateString)
+                if (date != null) {
+                    return outputFormat.format(date)
+                }
+            } catch (e: Exception) {
+                // Essayer le format suivant
+            }
+        }
+        
+        dateString
     } catch (e: Exception) {
         dateString
     }
@@ -561,5 +675,31 @@ private fun calculateSuccessRate(success: Int, failed: Int): String {
         "${(success * 100 / total)}%"
     } else {
         "—"
+    }
+}
+
+private fun formatNumber(number: Int): String {
+    return when {
+        number >= 1000000 -> String.format("%.1fM", number / 1000000f)
+        number >= 1000 -> String.format("%.1fK", number / 1000f)
+        else -> number.toString()
+    }
+}
+
+private fun formatDuration(durationMs: Long): String {
+    return when {
+        durationMs <= 0 -> "—"
+        durationMs < 1000 -> "${durationMs}ms"
+        durationMs < 60000 -> String.format("%.1fs", durationMs / 1000f)
+        durationMs < 3600000 -> {
+            val minutes = durationMs / 60000
+            val seconds = (durationMs % 60000) / 1000
+            "${minutes}m ${seconds}s"
+        }
+        else -> {
+            val hours = durationMs / 3600000
+            val minutes = (durationMs % 3600000) / 60000
+            "${hours}h ${minutes}m"
+        }
     }
 }
