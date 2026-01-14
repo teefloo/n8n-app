@@ -80,14 +80,14 @@ fun CredentialsScreen(
             NeumorphicTextField(
                 value = uiState.searchQuery,
                 onValueChange = viewModel::updateSearchQuery,
-                placeholder = "Rechercher un identifiant…",
+                placeholder = "Search credentials…",
                 leadingIcon = Icons.Default.Search,
                 trailingIcon = if (uiState.searchQuery.isNotEmpty()) {
                     {
                         IconButton(onClick = { viewModel.updateSearchQuery("") }) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
-                                contentDescription = "Effacer",
+                                contentDescription = "Clear",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -104,7 +104,7 @@ fun CredentialsScreen(
             // Credentials count (only show when not loading and no error)
             if (!uiState.isLoading && uiState.error == null) {
                 Text(
-                    text = "${filteredCredentials.size} identifiant(s)",
+                    text = "${filteredCredentials.size} credential(s)",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     modifier = Modifier.padding(horizontal = 20.dp)
@@ -122,7 +122,7 @@ fun CredentialsScreen(
                     // État de chargement initial
                     uiState.isLoading && uiState.credentials.isEmpty() -> {
                         LoadingState(
-                            message = "Chargement des identifiants...",
+                            message = "Loading credentials...",
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -134,12 +134,12 @@ fun CredentialsScreen(
                         
                         EmptyState(
                             icon = if (isAccessDenied) Icons.Outlined.Lock else Icons.Outlined.ErrorOutline,
-                            title = if (isAccessDenied) "Accès non autorisé" else "Erreur de chargement",
-                            message = uiState.error ?: "Erreur inconnue",
+                            title = if (isAccessDenied) "Access denied" else "Loading error",
+                            message = uiState.error ?: "Unknown error",
                             modifier = Modifier.fillMaxSize(),
                             action = {
                                 NeumorphicButton(
-                                    text = "Se connecter",
+                                    text = "Login",
                                     icon = Icons.AutoMirrored.Filled.Login,
                                     onClick = { viewModel.showLoginDialog() },
                                     modifier = Modifier.width(240.dp)
@@ -151,11 +151,11 @@ fun CredentialsScreen(
                     filteredCredentials.isEmpty() && !uiState.isLoading -> {
                         EmptyState(
                             icon = Icons.Outlined.Key,
-                            title = if (uiState.searchQuery.isNotEmpty()) "Aucun résultat" else "Aucun identifiant",
+                            title = if (uiState.searchQuery.isNotEmpty()) "No results" else "No credentials",
                             message = if (uiState.searchQuery.isNotEmpty()) 
-                                "Essayez avec d'autres termes" 
+                                "Try with other terms" 
                             else 
-                                "Configurez vos identifiants dans n8n",
+                                "Configure your credentials in n8n",
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -211,14 +211,14 @@ fun LoginDialog(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Authentification Requise",
+                    text = "Authentication Required",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 
                 Text(
-                    text = "Veuillez vous connecter pour accéder aux identifiants.",
+                    text = "Please login to access credentials.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -237,13 +237,13 @@ fun LoginDialog(
                 NeumorphicTextField(
                     value = password,
                     onValueChange = { password = it },
-                    placeholder = "Mot de passe",
+                    placeholder = "Password",
                     leadingIcon = Icons.Default.Lock,
                     trailingIcon = {
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
                                 imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = if (passwordVisible) "Masquer" else "Afficher",
+                                contentDescription = if (passwordVisible) "Hide" else "Show",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -262,7 +262,7 @@ fun LoginDialog(
                 ) {
                     TextButton(onClick = onDismiss) {
                         Text(
-                            text = "Annuler",
+                            text = "Cancel",
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -270,7 +270,7 @@ fun LoginDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     
                     NeumorphicButton(
-                        text = if (isLoading) "Connexion..." else "Se connecter",
+                        text = if (isLoading) "Connecting..." else "Login",
                         onClick = { onLogin(email, password) },
                         modifier = Modifier.width(140.dp),
                         enabled = !isLoading && email.isNotBlank() && password.isNotBlank()
@@ -305,7 +305,7 @@ private fun CredentialsTopBar(
             )
             
             Text(
-                text = "Identifiants",
+                text = "Credentials",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -332,7 +332,7 @@ private fun formatDate(dateString: String): String {
         val outputFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         outputFormat.timeZone = TimeZone.getDefault()
         val date = inputFormat.parse(dateString)
-        date?.let { "Mis à jour le ${outputFormat.format(it)}" } ?: dateString
+        date?.let { "Updated on ${outputFormat.format(it)}" } ?: dateString
     } catch (e: Exception) {
         dateString
     }

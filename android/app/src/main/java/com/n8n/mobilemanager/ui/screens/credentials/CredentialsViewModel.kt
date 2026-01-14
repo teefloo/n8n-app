@@ -180,7 +180,7 @@ class CredentialsViewModel @Inject constructor(
                         it.copy(
                             isLoggingIn = false,
                             isLoading = false,
-                            error = "Échec authentification: ${error.message}"
+                            error = "Authentication failed: ${error.message}"
                         )
                     }
                 }

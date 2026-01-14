@@ -150,7 +150,7 @@ fun WorkflowCard(
                         color = colors.onSurface
                     )
                     Text(
-                        text = "nœuds",
+                        text = "nodes",
                         style = MaterialTheme.typography.labelSmall,
                         color = colors.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -169,7 +169,7 @@ fun WorkflowCard(
                             .background(accentColor)
                     )
                     Text(
-                        text = if (isActive) "Actif" else "Inactif",
+                        text = if (isActive) "Active" else "Inactive",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         color = accentColor
@@ -185,7 +185,7 @@ fun WorkflowCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "Dernière exécution:",
+                        text = "Last execution:",
                         style = MaterialTheme.typography.labelSmall,
                         color = colors.onSurfaceVariant.copy(alpha = 0.6f)
                     )

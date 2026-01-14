@@ -58,14 +58,14 @@ sealed class Screen(
 ) {
     object Login : Screen(
         route = "login",
-        title = "Connexion",
+        title = "Login",
         iconOutlined = Icons.AutoMirrored.Outlined.Login,
         iconFilled = Icons.AutoMirrored.Filled.Login
     )
     
     object Dashboard : Screen(
         route = "dashboard",
-        title = "Tableau de bord",
+        title = "Dashboard",
         iconOutlined = Icons.Outlined.Dashboard,
         iconFilled = Icons.Filled.Dashboard
     )
@@ -79,7 +79,7 @@ sealed class Screen(
     
     object Executions : Screen(
         route = "executions",
-        title = "Exécutions",
+        title = "Executions",
         iconOutlined = Icons.Outlined.History,
         iconFilled = Icons.Filled.History
     )
@@ -93,7 +93,7 @@ sealed class Screen(
     
     object Settings : Screen(
         route = "settings",
-        title = "Paramètres",
+        title = "Settings",
         iconOutlined = Icons.Outlined.Settings,
         iconFilled = Icons.Filled.Settings
     )
@@ -101,7 +101,7 @@ sealed class Screen(
     // Detail screens
     object WorkflowDetail : Screen(
         route = "workflow/{workflowId}",
-        title = "Détail workflow",
+        title = "Workflow detail",
         iconOutlined = Icons.Outlined.AccountTree,
         iconFilled = Icons.Filled.AccountTree
     ) {
@@ -110,7 +110,7 @@ sealed class Screen(
     
     object ExecutionDetail : Screen(
         route = "execution/{executionId}",
-        title = "Détail exécution",
+        title = "Execution detail",
         iconOutlined = Icons.Outlined.History,
         iconFilled = Icons.Filled.History
     ) {
@@ -119,7 +119,7 @@ sealed class Screen(
     
     object CredentialDetail : Screen(
         route = "credential/{credentialId}",
-        title = "Détail credential",
+        title = "Credential detail",
         iconOutlined = Icons.Outlined.Key,
         iconFilled = Icons.Filled.Key
     ) {

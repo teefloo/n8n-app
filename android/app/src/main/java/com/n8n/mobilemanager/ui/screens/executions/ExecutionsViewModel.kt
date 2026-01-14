@@ -362,7 +362,7 @@ class ExecutionsViewModel @Inject constructor(
                     loadData(forceRefresh = true)
                 },
                 onFailure = { error ->
-                    _uiState.update { it.copy(error = "Échec: ${error.message}") }
+                    _uiState.update { it.copy(error = "Failed: ${error.message}") }
                 }
             )
         }
@@ -376,7 +376,7 @@ class ExecutionsViewModel @Inject constructor(
                     loadData(forceRefresh = true)
                 },
                 onFailure = { error ->
-                    _uiState.update { it.copy(error = "Échec: ${error.message}") }
+                    _uiState.update { it.copy(error = "Failed: ${error.message}") }
                 }
             )
         }

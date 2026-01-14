@@ -66,7 +66,7 @@ fun CredentialDetailScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopBar(
-                title = credential?.name ?: "Détails",
+                title = credential?.name ?: "Details",
                 onBackClick = onNavigateBack
             )
         }
@@ -77,7 +77,7 @@ fun CredentialDetailScreen(
                     credential = credential,
                     onCopyId = {
                         clipboardManager.setText(AnnotatedString(credential.id))
-                        Toast.makeText(context, "ID copié", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "ID copied", Toast.LENGTH_SHORT).show()
                     }
                 )
             } else if (uiState.isLoading) {
@@ -96,7 +96,7 @@ fun CredentialDetailScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Identifiant introuvable",
+                            text = "Credential not found",
                             style = MaterialTheme.typography.titleMedium
                         )
                     }
@@ -155,7 +155,7 @@ private fun CredentialContent(
         if (credential.nodesAccess.isNotEmpty()) {
             item {
                 Text(
-                    text = "Utilisé par",
+                    text = "Used by",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
@@ -180,7 +180,7 @@ private fun CredentialContent(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("COPIER ID: ${credential.id.take(8)}...")
+                    Text("COPY ID: ${credential.id.take(8)}...")
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -239,7 +239,7 @@ private fun CredentialMainInfo(credential: Credential) {
             
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Nom",
+                    text = "Name",
                     style = MaterialTheme.typography.labelMedium,
                     color = colors.onSurfaceVariant
                 )
@@ -262,7 +262,7 @@ private fun CredentialDates(credential: Credential) {
         // Created At
         Box(modifier = Modifier.weight(1f)) {
             DetailSmallCard(
-                label = "Créé le",
+                label = "Created on",
                 value = formatDate(credential.createdAt),
                 icon = Icons.Outlined.CalendarToday
             )
@@ -271,7 +271,7 @@ private fun CredentialDates(credential: Credential) {
         // Updated At
         Box(modifier = Modifier.weight(1f)) {
             DetailSmallCard(
-                label = "Mis à jour le",
+                label = "Updated on",
                 value = formatDate(credential.updatedAt),
                 icon = Icons.Outlined.Update
             )

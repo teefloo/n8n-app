@@ -107,7 +107,7 @@ fun DashboardTopBar(
     ) {
         Column {
             Text(
-                text = "Bonjour,",
+                text = "Hello,",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -207,7 +207,7 @@ fun StatsGrid(stats: InstanceStats) {
             )
             StatCard(
                 modifier = Modifier.weight(1f),
-                title = "Actifs",
+                title = "Active",
                 value = stats.activeWorkflows.toString(),
                 icon = Icons.Filled.PlayCircle,
                 color = StatusSuccess
@@ -220,14 +220,14 @@ fun StatsGrid(stats: InstanceStats) {
         ) {
             StatCard(
                 modifier = Modifier.weight(1f),
-                title = "Succès",
+                title = "Success",
                 value = stats.successfulExecutions.toString(),
                 icon = Icons.Outlined.CheckCircle,
                 color = StatusSuccess
             )
             StatCard(
                 modifier = Modifier.weight(1f),
-                title = "Échecs",
+                title = "Failures",
                 value = stats.failedExecutions.toString(),
                 icon = Icons.Outlined.Error,
                 color = StatusError
@@ -296,20 +296,20 @@ fun RecentExecutionsSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Exécutions récentes",
+                text = "Recent executions",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             TextButton(onClick = onSeeAllClick) {
-                Text("Voir tout", color = N8nPrimary)
+                Text("See all", color = N8nPrimary)
             }
         }
         
         if (executions.isEmpty()) {
             EmptyState(
                 icon = Icons.Outlined.History,
-                title = "Aucune exécution",
-                message = "Les exécutions récentes apparaîtront ici",
+                title = "No execution",
+                message = "Recent executions will appear here",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(20.dp)

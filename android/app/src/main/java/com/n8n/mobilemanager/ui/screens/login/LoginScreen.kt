@@ -74,14 +74,14 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(24.dp))
             
             Text(
-                text = "Bienvenue",
+                text = "Welcome",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
             
             Text(
-                text = "Connectez votre instance n8n",
+                text = "Connect your n8n instance",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -92,7 +92,7 @@ fun LoginScreen(
             NeumorphicTextField(
                 value = uiState.instanceName,
                 onValueChange = viewModel::updateInstanceName,
-                placeholder = "Nom de l'instance",
+                placeholder = "Instance name",
                 leadingIcon = Icons.AutoMirrored.Outlined.Label,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -112,13 +112,13 @@ fun LoginScreen(
             NeumorphicTextField(
                 value = uiState.instanceApiKey,
                 onValueChange = viewModel::updateInstanceApiKey,
-                placeholder = "Clé API",
+                placeholder = "API Key",
                 leadingIcon = Icons.Outlined.Key,
                 trailingIcon = {
                     IconButton(onClick = viewModel::toggleApiKeyVisibility) {
                         Icon(
                             imageVector = if (uiState.showApiKey) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                            contentDescription = if (uiState.showApiKey) "Masquer" else "Afficher",
+                            contentDescription = if (uiState.showApiKey) "Hide" else "Show",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -148,7 +148,7 @@ fun LoginScreen(
                             tint = if (result.isSuccess) StatusSuccess else StatusError
                         )
                         Text(
-                            text = if (result.isSuccess) "Connexion réussie" else (result.errorMessage ?: "Erreur"),
+                            text = if (result.isSuccess) "Connection successful" else (result.errorMessage ?: "Error"),
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (result.isSuccess) StatusSuccess else StatusError
                         )
@@ -174,7 +174,7 @@ fun LoginScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 NeumorphicButton(
-                    text = if (uiState.isTesting) "Test..." else "Tester",
+                    text = if (uiState.isTesting) "Testing..." else "Test",
                     onClick = viewModel::testConnection,
                     modifier = Modifier.weight(1f),
                     enabled = !uiState.isTesting && !uiState.isSaving,
@@ -182,7 +182,7 @@ fun LoginScreen(
                 )
                 
                 NeumorphicButton(
-                    text = if (uiState.isSaving) "Connexion..." else "Se connecter",
+                    text = if (uiState.isSaving) "Connecting..." else "Connect",
                     onClick = viewModel::saveInstance,
                     modifier = Modifier.weight(1f),
                     enabled = !uiState.isTesting && !uiState.isSaving,

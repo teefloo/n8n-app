@@ -37,7 +37,7 @@ class WorkflowDetailViewModel @Inject constructor(
         if (workflowId.isNotEmpty()) {
             loadWorkflowDetails()
         } else {
-            _uiState.update { it.copy(isLoading = false, error = "ID de workflow invalide") }
+            _uiState.update { it.copy(isLoading = false, error = "Invalid workflow ID") }
         }
     }
 
@@ -59,7 +59,7 @@ class WorkflowDetailViewModel @Inject constructor(
                     _uiState.update { 
                         it.copy(
                             isLoading = false,
-                            error = error.message ?: "Erreur lors du chargement"
+                            error = error.message ?: "Error loading workflow"
                         )
                     }
                 }
@@ -125,7 +125,7 @@ class WorkflowDetailViewModel @Inject constructor(
                 onFailure = { error ->
                     _uiState.update { 
                         it.copy(
-                            error = "Échec: ${error.message}",
+                            error = "Failed: ${error.message}",
                             isTogglingActive = false
                         )
                     }

@@ -36,26 +36,26 @@ class NotificationHelper @Inject constructor(
             Log.d(TAG, "Creating notification channels...")
             val errorChannel = NotificationChannel(
                 CHANNEL_ERRORS,
-                "Erreurs d'exécution",
+                "Execution Errors",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Notifications pour les erreurs de workflows"
+                description = "Notifications for workflow errors"
             }
 
             val successChannel = NotificationChannel(
                 CHANNEL_SUCCESS,
-                "Succès d'exécution",
+                "Execution Success",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Notifications pour les succès de workflows"
+                description = "Notifications for workflow successes"
             }
 
             val testChannel = NotificationChannel(
                 CHANNEL_TEST,
-                "Tests de notifications",
+                "Notification Tests",
                 NotificationManager.IMPORTANCE_HIGH // Augmenté pour le test
             ).apply {
-                description = "Canal utilisé pour tester les notifications"
+                description = "Channel used to test notifications"
             }
 
             notificationManager.createNotificationChannels(listOf(errorChannel, successChannel, testChannel))
@@ -110,8 +110,8 @@ class NotificationHelper @Inject constructor(
         Log.d(TAG, "Creating test notification...")
         createNotificationChannels() // Re-check channels
         showNotification(
-            title = "🔔 Test de notification n8n",
-            body = "Félicitations ! Les notifications fonctionnent correctement sur votre appareil.",
+            title = "🔔 n8n Notification Test",
+            body = "Congratulations! Notifications are working correctly on your device.",
             channelId = CHANNEL_TEST
         )
     }

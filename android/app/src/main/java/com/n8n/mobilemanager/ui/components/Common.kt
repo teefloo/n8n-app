@@ -108,7 +108,7 @@ fun EmptyState(
  */
 @Composable
 fun LoadingState(
-    message: String = "Chargement...",
+    message: String = "Loading...",
     modifier: Modifier = Modifier
 ) {
     val colors = neumorphicColors()
@@ -187,17 +187,17 @@ fun getStatusIcon(status: ExecutionStatus): ImageVector {
 }
 
 /**
- * Returns user-friendly status label in French
+ * Returns user-friendly status label in English
  */
 fun getStatusLabel(status: ExecutionStatus): String {
     return when (status) {
-        ExecutionStatus.SUCCESS -> "Succès"
-        ExecutionStatus.ERROR -> "Erreur"
-        ExecutionStatus.CRASHED -> "Planté"
-        ExecutionStatus.RUNNING -> "En cours"
-        ExecutionStatus.WAITING -> "En attente"
-        ExecutionStatus.QUEUED -> "En file d'attente"
-        ExecutionStatus.CANCELED -> "Annulé"
+        ExecutionStatus.SUCCESS -> "Success"
+        ExecutionStatus.ERROR -> "Error"
+        ExecutionStatus.CRASHED -> "Crashed"
+        ExecutionStatus.RUNNING -> "Running"
+        ExecutionStatus.WAITING -> "Waiting"
+        ExecutionStatus.QUEUED -> "Queued"
+        ExecutionStatus.CANCELED -> "Canceled"
     }
 }
 

@@ -257,7 +257,7 @@ class WorkflowsViewModel @Inject constructor(
                         }
                         state.copy(
                             workflows = revertedWorkflows,
-                            error = "Échec: ${error.message}",
+                            error = "Failed: ${error.message}",
                             isTogglingWorkflow = null
                         )
                     }

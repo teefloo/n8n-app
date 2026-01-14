@@ -68,11 +68,11 @@ class LoginViewModel @Inject constructor(
         val state = _uiState.value
         
         if (state.instanceUrl.isBlank()) {
-            _uiState.update { it.copy(error = "URL requise") }
+            _uiState.update { it.copy(error = "URL required") }
             return
         }
         if (state.instanceApiKey.isBlank()) {
-            _uiState.update { it.copy(error = "Clé API requise") }
+            _uiState.update { it.copy(error = "API Key required") }
             return
         }
 
@@ -101,7 +101,7 @@ class LoginViewModel @Inject constructor(
                             isTesting = false,
                             connectionTestResult = ConnectionResult(
                                 isSuccess = false,
-                                errorMessage = error.message ?: "Erreur de connexion"
+                                errorMessage = error.message ?: "Connection error"
                             )
                         )
                     }
@@ -114,15 +114,15 @@ class LoginViewModel @Inject constructor(
         val state = _uiState.value
 
         if (state.instanceName.isBlank()) {
-            _uiState.update { it.copy(error = "Nom de l'instance requis") }
+            _uiState.update { it.copy(error = "Instance name required") }
             return
         }
         if (state.instanceUrl.isBlank()) {
-            _uiState.update { it.copy(error = "URL requise") }
+            _uiState.update { it.copy(error = "URL required") }
             return
         }
         if (state.instanceApiKey.isBlank()) {
-            _uiState.update { it.copy(error = "Clé API requise") }
+            _uiState.update { it.copy(error = "API Key required") }
             return
         }
 
@@ -146,7 +146,7 @@ class LoginViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isSaving = false,
-                            error = error.message ?: "Erreur lors de la sauvegarde"
+                            error = error.message ?: "Error while saving"
                         )
                     }
                 }

@@ -69,7 +69,7 @@ fun WorkflowsScreen(
             // Filter chips
             if (uiState.filterActive != null) {
                 NeumorphicFilterChip(
-                    text = if (uiState.filterActive == true) "Actifs uniquement" else "Inactifs uniquement",
+                    text = if (uiState.filterActive == true) "Active only" else "Inactive only",
                     onRemove = { viewModel.setActiveFilter(null) },
                     modifier = Modifier.padding(horizontal = 20.dp)
                 )
@@ -102,11 +102,11 @@ fun WorkflowsScreen(
                 if (uiState.filteredWorkflows.isEmpty() && !uiState.isLoading) {
                     EmptyState(
                         icon = Icons.Outlined.AccountTree,
-                        title = if (uiState.searchQuery.isNotEmpty()) "Aucun résultat" else "Aucun workflow",
+                        title = if (uiState.searchQuery.isNotEmpty()) "No results" else "No workflow",
                         message = if (uiState.searchQuery.isNotEmpty()) 
-                            "Essayez avec d'autres termes de recherche" 
+                            "Try with other search terms" 
                         else 
-                            "Créez votre premier workflow dans n8n",
+                            "Create your first workflow in n8n",
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -271,14 +271,14 @@ private fun NeumorphicSearchBar(
     NeumorphicTextField(
         value = query,
         onValueChange = onQueryChange,
-        placeholder = "Rechercher des workflows…",
+        placeholder = "Search workflows…",
         leadingIcon = Icons.Default.Search,
         trailingIcon = if (query.isNotEmpty()) {
             {
                 IconButton(onClick = { onQueryChange("") }) {
                     Icon(
                         imageVector = Icons.Default.Clear,
-                        contentDescription = "Effacer",
+                        contentDescription = "Clear",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
@@ -326,7 +326,7 @@ private fun NeumorphicFilterChip(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Supprimer le filtre",
+                    contentDescription = "Remove filter",
                     tint = N8nPrimary,
                     modifier = Modifier.size(16.dp)
                 )
@@ -347,7 +347,7 @@ private fun NeumorphicFilterBottomSheetContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Filtrer par statut",
+            text = "Filter by status",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
@@ -356,13 +356,13 @@ private fun NeumorphicFilterBottomSheetContent(
         Spacer(modifier = Modifier.height(8.dp))
         
         NeumorphicFilterOption(
-            title = "Tous les workflows",
+            title = "All workflows",
             isSelected = currentFilter == null,
             onClick = { onFilterSelected(null) }
         )
         
         NeumorphicFilterOption(
-            title = "Workflows actifs",
+            title = "Active workflows",
             isSelected = currentFilter == true,
             onClick = { onFilterSelected(true) },
             icon = Icons.Filled.PlayCircle,
@@ -370,7 +370,7 @@ private fun NeumorphicFilterBottomSheetContent(
         )
         
         NeumorphicFilterOption(
-            title = "Workflows inactifs",
+            title = "Inactive workflows",
             isSelected = currentFilter == false,
             onClick = { onFilterSelected(false) },
             icon = Icons.Outlined.PauseCircle,

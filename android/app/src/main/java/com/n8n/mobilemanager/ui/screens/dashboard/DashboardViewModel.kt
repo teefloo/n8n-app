@@ -18,7 +18,7 @@ enum class StatsPeriod(val label: String, val durationMs: Long?, val maxPages: I
     LAST_24H("24h", 24 * 60 * 60 * 1000L, 4),    // ~1000 exécutions max
     LAST_7D("7j", 7 * 24 * 60 * 60 * 1000L, 10),  // ~2500 exécutions max
     LAST_30D("30j", 30 * 24 * 60 * 60 * 1000L, 20), // ~5000 exécutions max
-    ALL_TIME("Tout", null, 40)                     // ~10000 exécutions max
+    ALL_TIME("All", null, 40)                     // ~10000 executions max
 }
 
 /**
@@ -619,8 +619,8 @@ class DashboardViewModel @Inject constructor(
                 
                 if (exec.status == ExecutionStatus.ERROR || exec.status == ExecutionStatus.CRASHED) {
                     notificationHelper.showNotification(
-                        title = "Nouvelle erreur détectée",
-                        body = "Le workflow ${exec.workflowName ?: "Inconnu"} a échoué",
+                        title = "New error detected",
+                        body = "Workflow ${exec.workflowName ?: "Unknown"} failed",
                         workflowId = exec.workflowId,
                         executionId = exec.id
                     )

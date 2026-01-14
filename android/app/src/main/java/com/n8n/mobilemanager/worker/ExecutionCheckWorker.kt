@@ -64,11 +64,11 @@ class ExecutionCheckWorker @AssistedInject constructor(
                         val latestError = newErrors.first() // Most recent
                         val count = newErrors.size
                         
-                        val title = if (count == 1) "Erreur d'exécution" else "$count erreurs d'exécution"
+                        val title = if (count == 1) "Execution Error" else "$count execution errors"
                         val body = if (count == 1) {
-                            "Le workflow ${latestError.workflowName ?: "Inconnu"} a échoué"
+                            "Workflow ${latestError.workflowName ?: "Unknown"} failed"
                         } else {
-                            "Plusieurs workflows ont échoué récemment"
+                            "Multiple workflows have failed recently"
                         }
                         
                         notificationHelper.showNotification(

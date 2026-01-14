@@ -64,7 +64,7 @@ fun ExecutionsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 NeumorphicFilterButton(
-                    label = uiState.selectedStatus?.let { getStatusLabel(it) } ?: "Statut",
+                    label = uiState.selectedStatus?.let { getStatusLabel(it) } ?: "Status",
                     isActive = uiState.selectedStatus != null,
                     onClick = { showStatusFilterSheet = true },
                     onClear = if (uiState.selectedStatus != null) {
@@ -91,7 +91,7 @@ fun ExecutionsScreen(
             
             // Execution count
             Text(
-                text = "${uiState.filteredExecutions.size} exécution(s)",
+                text = "${uiState.filteredExecutions.size} execution(s)",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.padding(horizontal = 20.dp)
@@ -108,8 +108,8 @@ fun ExecutionsScreen(
                 if (uiState.filteredExecutions.isEmpty() && !uiState.isLoading) {
                     EmptyState(
                         icon = Icons.Outlined.History,
-                        title = "Aucune exécution",
-                        message = "Les exécutions de vos workflows apparaîtront ici",
+                        title = "No execution",
+                        message = "Your workflow executions will appear here",
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -216,7 +216,7 @@ private fun NeumorphicExecutionTopBar(
         )
         
         Text(
-            text = "Exécutions",
+            text = "Executions",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
@@ -285,7 +285,7 @@ private fun NeumorphicFilterButton(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Effacer",
+                        contentDescription = "Clear",
                         tint = N8nPrimary,
                         modifier = Modifier.size(16.dp)
                     )
@@ -434,7 +434,7 @@ private fun NeumorphicStatusFilterContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "Filtrer par statut",
+            text = "Filter by status",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
@@ -444,7 +444,7 @@ private fun NeumorphicStatusFilterContent(
         
         NeumorphicStatusFilterOption(
             status = null,
-            label = "Tous les statuts",
+            label = "All statuses",
             isSelected = currentStatus == null,
             onClick = { onStatusSelected(null) }
         )
@@ -552,7 +552,7 @@ private fun NeumorphicWorkflowFilterContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "Filtrer par workflow",
+            text = "Filter by workflow",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
@@ -586,7 +586,7 @@ private fun NeumorphicWorkflowFilterContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Tous les workflows",
+                    text = "All workflows",
                     style = MaterialTheme.typography.bodyLarge,
                     color = if (currentWorkflowId == null) N8nPrimary else MaterialTheme.colorScheme.onSurface
                 )

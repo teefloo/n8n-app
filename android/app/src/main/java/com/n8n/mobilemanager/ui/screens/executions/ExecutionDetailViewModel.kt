@@ -59,7 +59,7 @@ class ExecutionDetailViewModel @Inject constructor(
                     _uiState.update { it.copy(execution = execution, isLoading = false) }
                 },
                 onFailure = { error ->
-                    _uiState.update { it.copy(error = "Erreur lors du retry: ${error.message}", isLoading = false) }
+                    _uiState.update { it.copy(error = "Error retrying: ${error.message}", isLoading = false) }
                 }
             )
         }
@@ -75,7 +75,7 @@ class ExecutionDetailViewModel @Inject constructor(
                     _uiState.update { it.copy(execution = execution, isLoading = false) }
                 },
                 onFailure = { error ->
-                    _uiState.update { it.copy(error = "Erreur lors de l'arrêt: ${error.message}", isLoading = false) }
+                    _uiState.update { it.copy(error = "Error stopping: ${error.message}", isLoading = false) }
                 }
             )
         }

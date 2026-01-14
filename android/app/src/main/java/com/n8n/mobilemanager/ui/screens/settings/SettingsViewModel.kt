@@ -182,7 +182,7 @@ class SettingsViewModel @Inject constructor(
     fun testConnection() {
         val state = _uiState.value
         if (state.instanceUrl.isBlank() || state.instanceApiKey.isBlank()) {
-            _uiState.update { it.copy(error = "URL et clé API requises") }
+            _uiState.update { it.copy(error = "URL and API Key required") }
             return
         }
         
@@ -209,7 +209,7 @@ class SettingsViewModel @Inject constructor(
                     _uiState.update { 
                         it.copy(
                             isTestingConnection = false,
-                            connectionTestResult = ConnectionTestResult.Error(error.message ?: "Erreur inconnue")
+                            connectionTestResult = ConnectionTestResult.Error(error.message ?: "Unknown error")
                         )
                     }
                 }
@@ -221,15 +221,15 @@ class SettingsViewModel @Inject constructor(
         val state = _uiState.value
         
         if (state.instanceName.isBlank()) {
-            _uiState.update { it.copy(error = "Nom requis") }
+            _uiState.update { it.copy(error = "Name required") }
             return
         }
         if (state.instanceUrl.isBlank()) {
-            _uiState.update { it.copy(error = "URL requise") }
+            _uiState.update { it.copy(error = "URL required") }
             return
         }
         if (state.instanceApiKey.isBlank()) {
-            _uiState.update { it.copy(error = "Clé API requise") }
+            _uiState.update { it.copy(error = "API Key required") }
             return
         }
         

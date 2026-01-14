@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <strong>📱 Gérez vos workflows n8n depuis votre mobile</strong>
+  <strong>📱 Manage your n8n workflows from your mobile</strong>
 </p>
 
 <p align="center">
-  <a href="#fonctionnalités">Fonctionnalités</a> •
+  <a href="#features">Features</a> •
   <a href="#installation">Installation</a> •
   <a href="#configuration">Configuration</a> •
   <a href="#architecture">Architecture</a> •
@@ -18,143 +18,143 @@
 
 ---
 
-## 🎯 À propos
+## 🎯 About
 
-**n8n Mobile Manager** est une application Android native conçue pour les utilisateurs de [n8n](https://n8n.io/), la plateforme d'automatisation open-source. Elle permet de visualiser, superviser et contrôler à distance votre instance n8n depuis un smartphone ou une tablette.
+**n8n Mobile Manager** is a native Android application designed for [n8n](https://n8n.io/) users, the open-source automation platform. It allows you to visualize, monitor, and remotely control your n8n instance from a smartphone or tablet.
 
-## ✨ Fonctionnalités
+## ✨ Features
 
-### 📊 Tableau de bord
-- Statut de l'instance (en ligne / hors ligne)
-- Statistiques globales (workflows actifs, exécutions, taux de succès)
-- Exécutions récentes avec accès rapide aux détails
-- Actions rapides pour accéder aux sections principales
+### 📊 Dashboard
+- Instance status (online / offline)
+- Global statistics (active workflows, executions, success rate)
+- Recent executions with quick access to details
+- Quick actions to access main sections
 
-### ⚙️ Gestion des Workflows
-- Liste complète avec recherche et filtrage
-- Activation/désactivation des workflows
-- Visualisation des détails (nœuds, paramètres)
-- Déclenchement manuel de workflows
+### ⚙️ Workflow Management
+- Complete list with search and filtering
+- Enable/disable workflows
+- View details (nodes, settings)
+- Manual workflow triggering
 
-### 📜 Suivi des Exécutions
-- Historique complet des exécutions
-- Filtrage par statut (succès, erreur, en cours) et workflow
-- Détails des exécutions avec logs
-- Actions : réessayer, stopper
+### 📜 Execution Tracking
+- Complete execution history
+- Filter by status (success, error, running) and workflow
+- Execution details with logs
+- Actions: retry, stop
 
-### 🔐 Gestion des Credentials
-- Accès sécurisé avec authentification biométrique
-- Liste de tous les credentials configurés
-- Visualisation des détails (types, dates)
+### 🔐 Credential Management
+- Secure access with biometric authentication
+- List of all configured credentials
+- View details (types, dates)
 
-### ⚡ Paramètres
-- Gestion de plusieurs instances n8n
-- Thème clair/sombre/système
-- Authentification biométrique
-- Notifications push configurables
+### ⚡ Settings
+- Manage multiple n8n instances
+- Light/dark/system theme
+- Biometric authentication
+- Configurable push notifications
 
 ## 🚀 Installation
 
-### Prérequis
+### Prerequisites
 
-- **Android Studio** Hedgehog (2023.1.1) ou plus récent
-- **JDK 17** ou plus récent
+- **Android Studio** Hedgehog (2023.1.1) or newer
+- **JDK 17** or newer
 - **Android SDK** version 35
-- **Appareil/Émulateur** Android API 26+ (Android 8.0)
+- **Device/Emulator** Android API 26+ (Android 8.0)
 
-### Étapes
+### Steps
 
-1. **Cloner le repository**
+1. **Clone the repository**
    ```bash
-   git clone https://github.com/votre-username/n8n-mobile-manager.git
+   git clone https://github.com/your-username/n8n-mobile-manager.git
    cd n8n-mobile-manager
    ```
 
-2. **Ouvrir dans Android Studio**
+2. **Open in Android Studio**
    ```
-   File > Open > Sélectionner le dossier du projet
-   ```
-
-3. **Synchroniser Gradle**
-   ```
-   Android Studio synchronisera automatiquement les dépendances
+   File > Open > Select the project folder
    ```
 
-4. **Lancer l'application**
+3. **Sync Gradle**
    ```
-   Run > Run 'app' ou Shift+F10
+   Android Studio will automatically sync dependencies
+   ```
+
+4. **Run the application**
+   ```
+   Run > Run 'app' or Shift+F10
    ```
 
 ## ⚙️ Configuration
 
-### Configuration n8n
+### n8n Configuration
 
-Pour utiliser l'application, vous devez avoir :
+To use the application, you need:
 
-1. **Une instance n8n accessible** (self-hosted ou cloud)
-2. **Une clé API n8n** :
-   - Allez dans `Settings > API > API Keys` dans votre n8n
-   - Créez une nouvelle clé API
-   - Copiez la clé générée
+1. **An accessible n8n instance** (self-hosted or cloud)
+2. **An n8n API key**:
+   - Go to `Settings > API > API Keys` in your n8n
+   - Create a new API key
+   - Copy the generated key
 
-### Configuration Firebase (optionnel)
+### Firebase Configuration (optional)
 
-Pour les notifications push :
+For push notifications:
 
-1. Créez un projet Firebase
-2. Ajoutez une application Android avec le package `com.n8n.mobilemanager`
-3. Téléchargez `google-services.json` et placez-le dans `app/`
-4. Activez Cloud Messaging
+1. Create a Firebase project
+2. Add an Android app with the package `com.n8n.mobilemanager`
+3. Download `google-services.json` and place it in `app/`
+4. Enable Cloud Messaging
 
 ## 🏗️ Architecture
 
 ```
 app/src/main/java/com/n8n/mobilemanager/
 ├── data/
-│   ├── local/          # Base de données Room & DataStore
-│   ├── model/          # Modèles de données
-│   ├── remote/         # API Retrofit & DTOs
+│   ├── local/          # Room Database & DataStore
+│   ├── model/          # Data models
+│   ├── remote/         # Retrofit API & DTOs
 │   └── repository/     # Repository pattern
-├── di/                 # Injection de dépendances Hilt
+├── di/                 # Hilt Dependency Injection
 ├── service/            # Services (Firebase Messaging)
 ├── ui/
-│   ├── components/     # Composants réutilisables
-│   ├── navigation/     # Navigation Compose
-│   ├── screens/        # Écrans de l'application
+│   ├── components/     # Reusable components
+│   ├── navigation/     # Compose Navigation
+│   ├── screens/        # Application screens
 │   │   ├── dashboard/
 │   │   ├── workflows/
 │   │   ├── executions/
 │   │   ├── credentials/
 │   │   └── settings/
-│   └── theme/          # Thème Material 3
-└── utils/              # Utilitaires
+│   └── theme/          # Material 3 Theme
+└── utils/              # Utilities
 ```
 
-### Stack Technique
+### Tech Stack
 
-| Catégorie | Technologies |
-|-----------|-------------|
+| Category | Technologies |
+|----------|-------------|
 | **UI** | Jetpack Compose, Material 3 |
 | **Architecture** | MVVM, Repository Pattern |
 | **DI** | Hilt |
-| **Réseau** | Retrofit, OkHttp |
-| **Base de données** | Room, DataStore |
+| **Network** | Retrofit, OkHttp |
+| **Database** | Room, DataStore |
 | **Async** | Kotlin Coroutines, Flow |
 | **Notifications** | Firebase Cloud Messaging |
-| **Sécurité** | BiometricPrompt, HTTPS |
+| **Security** | BiometricPrompt, HTTPS |
 
 ## 📱 Screenshots
 
-> *À venir*
+> *Coming soon*
 
-## 🛠️ Développement
+## 🛠️ Development
 
-### Build Debug
+### Debug Build
 ```bash
 ./gradlew assembleDebug
 ```
 
-### Build Release
+### Release Build
 ```bash
 ./gradlew assembleRelease
 ```
@@ -169,39 +169,39 @@ app/src/main/java/com/n8n/mobilemanager/
 ./gradlew lint
 ```
 
-## 🔗 API n8n
+## 🔗 n8n API
 
-L'application utilise l'[API REST n8n v1](https://docs.n8n.io/api/). Endpoints utilisés :
+The application uses the [n8n REST API v1](https://docs.n8n.io/api/). Endpoints used:
 
 - `GET /healthz` - Health check
-- `GET /api/v1/workflows` - Liste des workflows
-- `POST /api/v1/workflows/{id}/activate` - Activer un workflow
-- `POST /api/v1/workflows/{id}/deactivate` - Désactiver un workflow
-- `GET /api/v1/executions` - Liste des exécutions
-- `GET /api/v1/credentials` - Liste des credentials
+- `GET /api/v1/workflows` - List workflows
+- `POST /api/v1/workflows/{id}/activate` - Activate a workflow
+- `POST /api/v1/workflows/{id}/deactivate` - Deactivate a workflow
+- `GET /api/v1/executions` - List executions
+- `GET /api/v1/credentials` - List credentials
 
 ## 🤝 Contribution
 
-Les contributions sont les bienvenues ! N'hésitez pas à :
+Contributions are welcome! Feel free to:
 
-1. Fork le projet
-2. Créer une branche (`git checkout -b feature/ma-feature`)
-3. Commit vos changements (`git commit -m 'Ajoute ma feature'`)
-4. Push sur la branche (`git push origin feature/ma-feature`)
-5. Ouvrir une Pull Request
+1. Fork the project
+2. Create a branch (`git checkout -b feature/my-feature`)
+3. Commit your changes (`git commit -m 'Add my feature'`)
+4. Push to the branch (`git push origin feature/my-feature`)
+5. Open a Pull Request
 
-## 📄 Licence
+## 📄 License
 
-Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## 🙏 Remerciements
+## 🙏 Acknowledgments
 
-- [n8n.io](https://n8n.io/) pour leur excellente plateforme d'automatisation
-- [Material Design 3](https://m3.material.io/) pour les guidelines de design
-- La communauté Android et Kotlin
+- [n8n.io](https://n8n.io/) for their excellent automation platform
+- [Material Design 3](https://m3.material.io/) for the design guidelines
+- The Android and Kotlin community
 
 ---
 
 <p align="center">
-  Fait avec ❤️ pour la communauté n8n
+  Made with ❤️ for the n8n community
 </p>

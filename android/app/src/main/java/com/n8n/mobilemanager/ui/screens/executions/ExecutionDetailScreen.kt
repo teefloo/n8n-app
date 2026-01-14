@@ -39,7 +39,7 @@ fun ExecutionDetailScreen(
     Scaffold(
         topBar = {
             NeumorphicDetailTopBar(
-                title = "Détail exécution",
+                title = "Execution detail",
                 onBackClick = onNavigateBack
             )
         },
@@ -70,13 +70,13 @@ fun ExecutionDetailScreen(
                         modifier = Modifier.size(48.dp)
                     )
                     Text(
-                        text = uiState.error ?: "Une erreur est survenue",
+                        text = uiState.error ?: "An error occurred",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     NeumorphicButton(
-                        text = "Réessayer",
+                        text = "Retry",
                         onClick = { viewModel.loadExecution() },
                         isPrimary = true
                     )
@@ -231,7 +231,7 @@ private fun ExecutionContent(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Chronologie",
+                    text = "Timeline",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -243,14 +243,14 @@ private fun ExecutionContent(
                 ) {
                     TimingItem(
                         icon = Icons.Outlined.PlayArrow,
-                        label = "Début",
+                        label = "Start",
                         value = formatDateTime(execution.startedAt)
                     )
                     
                     execution.stoppedAt?.let {
                         TimingItem(
                             icon = Icons.Outlined.Stop,
-                            label = "Fin",
+                            label = "End",
                             value = formatDateTime(it)
                         )
                     }
@@ -258,7 +258,7 @@ private fun ExecutionContent(
                     if (execution.stoppedAt != null) {
                         TimingItem(
                             icon = Icons.Outlined.Timer,
-                            label = "Durée",
+                            label = "Duration",
                             value = calculateDuration(execution.startedAt, execution.stoppedAt)
                         )
                     }
@@ -286,7 +286,7 @@ private fun ExecutionContent(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "Erreur",
+                            text = "Error",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = StatusError
@@ -301,7 +301,7 @@ private fun ExecutionContent(
                     
                     if (!error.node.isNullOrBlank()) {
                         Text(
-                            text = "Nœud: ${error.node}",
+                            text = "Node: ${error.node}",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.SemiBold

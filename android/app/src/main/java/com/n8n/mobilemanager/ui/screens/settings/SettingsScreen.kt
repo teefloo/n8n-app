@@ -60,7 +60,7 @@ fun SettingsScreen(
             // Instances Section
             item {
                 NeumorphicSettingsSectionHeader(
-                    title = "Instances n8n",
+                    title = "n8n Instances",
                     icon = Icons.Outlined.Cloud
                 )
             }
@@ -99,7 +99,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Ajouter une instance",
+                            text = "Add instance",
                             style = MaterialTheme.typography.labelLarge,
                             color = N8nPrimary,
                             fontWeight = FontWeight.SemiBold
@@ -112,7 +112,7 @@ fun SettingsScreen(
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 NeumorphicSettingsSectionHeader(
-                    title = "Apparence",
+                    title = "Appearance",
                     icon = Icons.Outlined.Palette
                 )
             }
@@ -124,11 +124,11 @@ fun SettingsScreen(
                 ) {
                     NeumorphicSettingsRow(
                         icon = Icons.Outlined.DarkMode,
-                        title = "Thème",
+                        title = "Theme",
                         subtitle = when (uiState.themeMode) {
-                            PreferencesManager.ThemeMode.LIGHT -> "Clair"
-                            PreferencesManager.ThemeMode.DARK -> "Sombre"
-                            PreferencesManager.ThemeMode.SYSTEM -> "Système"
+                            PreferencesManager.ThemeMode.LIGHT -> "Light"
+                            PreferencesManager.ThemeMode.DARK -> "Dark"
+                            PreferencesManager.ThemeMode.SYSTEM -> "System"
                         },
                         onClick = { showThemeDialog = true }
                     )
@@ -139,7 +139,7 @@ fun SettingsScreen(
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 NeumorphicSettingsSectionHeader(
-                    title = "Sécurité",
+                    title = "Security",
                     icon = Icons.Outlined.Security
                 )
             }
@@ -151,8 +151,8 @@ fun SettingsScreen(
                 ) {
                     NeumorphicSettingsToggleRow(
                         icon = Icons.Outlined.Fingerprint,
-                        title = "Authentification biométrique",
-                        subtitle = "Protéger l'accès à l'application",
+                        title = "Biometric authentication",
+                        subtitle = "Protect access to the app",
                         checked = uiState.biometricEnabled,
                         onCheckedChange = viewModel::setBiometricEnabled
                     )
@@ -176,8 +176,8 @@ fun SettingsScreen(
                     Column {
                         NeumorphicSettingsToggleRow(
                             icon = Icons.Outlined.ErrorOutline,
-                            title = "Alertes d'erreurs",
-                            subtitle = "Recevoir une notification en cas d'échec",
+                            title = "Error alerts",
+                            subtitle = "Receive a notification in case of failure",
                             checked = uiState.notifyErrors,
                             onCheckedChange = viewModel::setNotifyErrors
                         )
@@ -192,8 +192,8 @@ fun SettingsScreen(
                         
                         NeumorphicSettingsToggleRow(
                             icon = Icons.Outlined.CheckCircleOutline,
-                            title = "Notifications de succès",
-                            subtitle = "Recevoir une notification en cas de succès",
+                            title = "Success notifications",
+                            subtitle = "Receive a notification in case of success",
                             checked = uiState.notifySuccess,
                             onCheckedChange = viewModel::setNotifySuccess
                         )
@@ -229,7 +229,7 @@ fun SettingsScreen(
                             }
                             Spacer(modifier = Modifier.width(14.dp))
                             Text(
-                                text = "Tester la notification",
+                                text = "Test notification",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = N8nPrimary,
                                 fontWeight = FontWeight.Medium
@@ -243,7 +243,7 @@ fun SettingsScreen(
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 NeumorphicSettingsSectionHeader(
-                    title = "À propos",
+                    title = "About",
                     icon = Icons.Outlined.Info
                 )
             }
@@ -275,7 +275,7 @@ fun SettingsScreen(
             shape = RoundedCornerShape(24.dp),
             title = { 
                 Text(
-                    text = "Choisir le thème",
+                    text = "Choose theme",
                     fontWeight = FontWeight.Bold
                 ) 
             },
@@ -325,9 +325,9 @@ fun SettingsScreen(
                                     )
                                     Text(
                                         text = when (mode) {
-                                            PreferencesManager.ThemeMode.LIGHT -> "Clair"
-                                            PreferencesManager.ThemeMode.DARK -> "Sombre"
-                                            PreferencesManager.ThemeMode.SYSTEM -> "Système"
+                                            PreferencesManager.ThemeMode.LIGHT -> "Light"
+                                            PreferencesManager.ThemeMode.DARK -> "Dark"
+                                            PreferencesManager.ThemeMode.SYSTEM -> "System"
                                         },
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = if (uiState.themeMode == mode) N8nPrimary else MaterialTheme.colorScheme.onSurface
@@ -357,7 +357,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showThemeDialog = false }) {
-                    Text("Annuler", color = N8nPrimary)
+                    Text("Cancel", color = N8nPrimary)
                 }
             }
         )
@@ -371,12 +371,12 @@ fun SettingsScreen(
             shape = RoundedCornerShape(24.dp),
             title = { 
                 Text(
-                    text = "Supprimer l'instance ?",
+                    text = "Delete instance?",
                     fontWeight = FontWeight.Bold
                 ) 
             },
             text = { 
-                Text("Voulez-vous vraiment supprimer l'instance \"${instance.name}\" ?")
+                Text("Are you sure you want to delete the instance \"${instance.name}\"?")
             },
             confirmButton = {
                 TextButton(
@@ -388,12 +388,12 @@ fun SettingsScreen(
                         contentColor = StatusError
                     )
                 ) {
-                    Text("Supprimer")
+                    Text("Delete")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { instanceToDelete = null }) {
-                    Text("Annuler", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         )
@@ -443,7 +443,7 @@ private fun NeumorphicSettingsTopBar(onBackClick: () -> Unit) {
         )
         
         Text(
-            text = "Paramètres",
+            text = "Settings",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
@@ -672,7 +672,7 @@ private fun NeumorphicInstanceCard(
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(
-                                text = "Actif",
+                                text = "Active",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = androidx.compose.ui.graphics.Color.White,
                                 fontWeight = FontWeight.SemiBold
@@ -735,7 +735,7 @@ private fun NeumorphicInstanceFormContent(
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Text(
-            text = if (isEditing) "Modifier l'instance" else "Nouvelle instance",
+            text = if (isEditing) "Edit instance" else "New instance",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
@@ -745,7 +745,7 @@ private fun NeumorphicInstanceFormContent(
         NeumorphicTextField(
             value = name,
             onValueChange = onNameChange,
-            placeholder = "Mon instance n8n",
+            placeholder = "My n8n instance",
                             leadingIcon = Icons.AutoMirrored.Outlined.Label,            modifier = Modifier.fillMaxWidth()
         )
         
@@ -768,7 +768,7 @@ private fun NeumorphicInstanceFormContent(
                 IconButton(onClick = { showApiKey = !showApiKey }) {
                     Icon(
                         imageVector = if (showApiKey) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                        contentDescription = if (showApiKey) "Masquer" else "Afficher",
+                        contentDescription = if (showApiKey) "Hide" else "Show",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -808,7 +808,7 @@ private fun NeumorphicInstanceFormContent(
                     )
                     Text(
                         text = when (result) {
-                            is ConnectionTestResult.Success -> "Connexion réussie !"
+                            is ConnectionTestResult.Success -> "Connection successful!"
                             is ConnectionTestResult.Error -> result.message
                         },
                         style = MaterialTheme.typography.bodyMedium,
@@ -834,7 +834,7 @@ private fun NeumorphicInstanceFormContent(
         
         // Test connection button
         NeumorphicButton(
-            text = if (isTesting) "Test en cours..." else "Tester la connexion",
+            text = if (isTesting) "Testing..." else "Test connection",
             onClick = onTestConnection,
             icon = Icons.Outlined.NetworkCheck,
             isPrimary = false,
@@ -848,14 +848,14 @@ private fun NeumorphicInstanceFormContent(
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             NeumorphicButton(
-                text = "Annuler",
+                text = "Cancel",
                 onClick = onCancel,
                 isPrimary = false,
                 modifier = Modifier.weight(1f)
             )
             
             NeumorphicButton(
-                text = if (isSaving) "Enregistrement..." else "Enregistrer",
+                text = if (isSaving) "Saving..." else "Save",
                 onClick = onSave,
                 enabled = !isSaving && name.isNotBlank() && url.isNotBlank() && apiKey.isNotBlank(),
                 isPrimary = true,

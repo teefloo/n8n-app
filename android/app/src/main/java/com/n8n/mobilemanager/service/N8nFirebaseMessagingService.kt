@@ -90,17 +90,17 @@ class N8nFirebaseMessagingService : FirebaseMessagingService() {
             val channel = when (channelId) {
                 CHANNEL_ERROR -> NotificationChannel(
                     CHANNEL_ERROR,
-                    "Erreurs d'exécution",
+                    "Execution Errors",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "Notifications pour les erreurs de workflows"
+                    description = "Notifications for workflow errors"
                 }
                 else -> NotificationChannel(
                     CHANNEL_DEFAULT,
-                    "Notifications générales",
+                    "General Notifications",
                     NotificationManager.IMPORTANCE_DEFAULT
                 ).apply {
-                    description = "Notifications générales de n8n Manager"
+                    description = "General notifications from n8n Manager"
                 }
             }
             

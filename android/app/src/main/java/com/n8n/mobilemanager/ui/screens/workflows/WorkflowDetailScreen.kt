@@ -64,8 +64,8 @@ fun WorkflowDetailScreen(
                 // Error state
                 EmptyState(
                     icon = Icons.Outlined.Error,
-                    title = "Erreur de chargement",
-                    message = uiState.error ?: "Une erreur est survenue",
+                    title = "Loading error",
+                    message = uiState.error ?: "An error occurred",
                     modifier = Modifier.fillMaxSize()
                 )
             } else if (uiState.workflow != null) {
@@ -117,7 +117,7 @@ fun WorkflowDetailScreen(
                     // Nodes section
                     if (workflow.nodes.isNotEmpty()) {
                         item {
-                            SectionTitle(title = "Nœuds (${workflow.nodes.size})")
+                            SectionTitle(title = "Nodes (${workflow.nodes.size})")
                         }
                         
                         items(workflow.nodes.take(10)) { node ->
@@ -127,7 +127,7 @@ fun WorkflowDetailScreen(
                         if (workflow.nodes.size > 10) {
                             item {
                                 Text(
-                                    text = "+ ${workflow.nodes.size - 10} autres nœuds...",
+                                    text = "+ ${workflow.nodes.size - 10} more nodes...",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                     modifier = Modifier.padding(vertical = 8.dp)
@@ -139,7 +139,7 @@ fun WorkflowDetailScreen(
                     // Recent executions section
                     if (uiState.recentExecutions.isNotEmpty()) {
                         item {
-                            SectionTitle(title = "Exécutions récentes")
+                            SectionTitle(title = "Recent executions")
                         }
                         
                         items(uiState.recentExecutions) { execution ->
@@ -152,7 +152,7 @@ fun WorkflowDetailScreen(
                     
                     // Settings section - always show with default values
                     item {
-                        SectionTitle(title = "Paramètres")
+                        SectionTitle(title = "Settings")
                     }
                     
                     item {
@@ -289,7 +289,7 @@ private fun WorkflowHeaderCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             StatusBadge(
-                                text = if (isActive) "Actif" else "Inactif",
+                                text = if (isActive) "Active" else "Inactive",
                                 color = if (isActive) StatusSuccess else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -322,11 +322,11 @@ private fun WorkflowHeaderCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 DateInfo(
-                    label = "Créé",
+                    label = "Created",
                     dateString = createdAt
                 )
                 DateInfo(
-                    label = "Modifié",
+                    label = "Modified",
                     dateString = updatedAt
                 )
             }
@@ -388,21 +388,21 @@ private fun WorkflowStatsRow(
             modifier = Modifier.weight(1f),
             icon = Icons.Outlined.Hub,
             value = nodesCount.toString(),
-            label = "Nœuds",
+            label = "Nodes",
             color = N8nPrimary
         )
         StatCard(
             modifier = Modifier.weight(1f),
             icon = Icons.Outlined.CheckCircle,
             value = successCount.toString(),
-            label = "Succès",
+            label = "Success",
             color = StatusSuccess
         )
         StatCard(
             modifier = Modifier.weight(1f),
             icon = Icons.Outlined.ErrorOutline,
             value = errorCount.toString(),
-            label = "Erreurs",
+            label = "Errors",
             color = StatusError
         )
     }
@@ -547,7 +547,7 @@ private fun NodeCard(node: Node) {
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "Désactivé",
+                        text = "Disabled",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -610,7 +610,7 @@ private fun ExecutionMiniCard(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
-                    text = "Exécution #${execution.id}",
+                    text = "Execution #${execution.id}",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
@@ -666,15 +666,15 @@ private fun WorkflowSettingsCard(
             // Fuseau horaire
             SettingsRow(
                 icon = Icons.Outlined.Schedule,
-                label = "Fuseau horaire",
-                value = timezone ?: "Par défaut (serveur)"
+                label = "Timezone",
+                value = timezone ?: "Default (server)"
             )
             
             // Timeout
             SettingsRow(
                 icon = Icons.Outlined.Timer,
-                label = "Timeout d'exécution",
-                value = executionTimeout?.let { "${it}s" } ?: "Illimité"
+                label = "Execution timeout",
+                value = executionTimeout?.let { "${it}s" } ?: "Unlimited"
             )
             
             HorizontalDivider(
@@ -684,44 +684,44 @@ private fun WorkflowSettingsCard(
             // Sauvegarde des exécutions manuelles
             SettingsRow(
                 icon = Icons.Outlined.Save,
-                label = "Sauvegarder manuelles",
+                label = "Save manual executions",
                 value = when (saveManualExecutions) {
-                    true -> "Oui"
-                    false -> "Non"
-                    null -> "Par défaut"
+                    true -> "Yes"
+                    false -> "No"
+                    null -> "Default"
                 }
             )
             
             // Sauvegarde de la progression
             SettingsRow(
                 icon = Icons.Outlined.Pending,
-                label = "Sauvegarder progression",
+                label = "Save progress",
                 value = when (saveExecutionProgress) {
-                    true -> "Oui"
-                    false -> "Non"
-                    null -> "Par défaut"
+                    true -> "Yes"
+                    false -> "No"
+                    null -> "Default"
                 }
             )
             
             // Sauvegarde en cas d'erreur
             SettingsRow(
                 icon = Icons.Outlined.ErrorOutline,
-                label = "Sauvegarder si erreur",
+                label = "Save on error",
                 value = when (saveDataErrorExecution) {
-                    "all" -> "Toutes les données"
-                    "none" -> "Aucune donnée"
-                    else -> saveDataErrorExecution ?: "Par défaut"
+                    "all" -> "All data"
+                    "none" -> "No data"
+                    else -> saveDataErrorExecution ?: "Default"
                 }
             )
             
             // Sauvegarde en cas de succès
             SettingsRow(
                 icon = Icons.Outlined.CheckCircleOutline,
-                label = "Sauvegarder si succès",
+                label = "Save on success",
                 value = when (saveDataSuccessExecution) {
-                    "all" -> "Toutes les données"
-                    "none" -> "Aucune donnée"
-                    else -> saveDataSuccessExecution ?: "Par défaut"
+                    "all" -> "All data"
+                    "none" -> "No data"
+                    else -> saveDataSuccessExecution ?: "Default"
                 }
             )
         }

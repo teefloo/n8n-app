@@ -440,13 +440,13 @@ class N8nRepository @Inject constructor(
                         
                         // Messages d'erreur plus explicites
                         val errorMessage = when (response.code()) {
-                            401 -> "Clé API invalide ou expirée"
-                            403 -> "Accès aux credentials refusé. Vérifiez les permissions de votre clé API."
-                            405 -> "L'accès aux credentials n'est pas autorisé sur cette instance n8n. " +
-                                   "Assurez-vous que votre clé API a les scopes nécessaires (credential:read) " +
-                                   "ou que votre plan n8n le permet."
-                            404 -> "Endpoint credentials non trouvé. Vérifiez la version de n8n."
-                            else -> "Erreur ${response.code()}: $errorBody"
+                            401 -> "Invalid or expired API key"
+                            403 -> "Access to credentials denied. Check your API key permissions."
+                            405 -> "Access to credentials is not allowed on this n8n instance. " +
+                                   "Make sure your API key has the necessary scopes (credential:read) " +
+                                   "or that your n8n plan allows it."
+                            404 -> "Credentials endpoint not found. Check your n8n version."
+                            else -> "Error ${response.code()}: $errorBody"
                         }
                         
                         Result.failure(Exception(errorMessage))
@@ -513,7 +513,7 @@ class N8nRepository @Inject constructor(
     suspend fun getCredentialsWithLogin(email: String, password: String): Result<List<Credential>> {
         return withContext(Dispatchers.IO) {
             Log.d(TAG, "getCredentialsWithLogin: Starting login...")
-            val instance = getActiveInstance() ?: return@withContext Result.failure(Exception("Aucune instance active"))
+            val instance = getActiveInstance() ?: return@withContext Result.failure(Exception("No active instance"))
             
             try {
                 // 1. Authentification pour récupérer le cookie
@@ -532,7 +532,7 @@ class N8nRepository @Inject constructor(
                 if (!loginResponse.isSuccessful) {
                     val errorBody = loginResponse.errorBody()?.string()
                     Log.e(TAG, "getCredentialsWithLogin: Login failed: $errorBody")
-                    return@withContext Result.failure(Exception("Échec de connexion: ${loginResponse.code()} - Vérifiez vos identifiants"))
+                    return@withContext Result.failure(Exception("Login failed: ${loginResponse.code()} - Check your credentials"))
                 }
                 
                 // 2. Extraction et nettoyage du cookie
@@ -542,7 +542,7 @@ class N8nRepository @Inject constructor(
                 
                 if (rawCookie == null) {
                     Log.e(TAG, "getCredentialsWithLogin: Cookie not found. Cookies=${cookies}")
-                    return@withContext Result.failure(Exception("Cookie d'authentification non trouvé"))
+                    return@withContext Result.failure(Exception("Authentication cookie not found"))
                 }
                 
                 // Garder uniquement la partie clé=valeur (supprimer Path, HttpOnly, etc.)
@@ -592,7 +592,7 @@ class N8nRepository @Inject constructor(
                              Log.e(TAG, "getCredentialsWithLogin: Public API failed at page $pageCount, code=${publicResponse.code()}")
                              if (allCredentials.isEmpty()) {
                                  // Tout a échoué
-                                 return@withContext Result.failure(Exception("Erreur récupération credentials: ${response.code()}"))
+                                 return@withContext Result.failure(Exception("Error fetching credentials: ${response.code()}"))
                              }
                              break
                         }
@@ -966,7 +966,7 @@ class N8nRepository @Inject constructor(
             
             if (instance == null) {
                 Log.e(TAG, "withApiService: No active instance configured!")
-                return@withContext Result.failure(Exception("Aucune instance active configurée"))
+                return@withContext Result.failure(Exception("No active instance configured"))
             }
             
             Log.d(TAG, "withApiService: Using instance=${instance.name}, baseUrl=${instance.baseUrl}")
