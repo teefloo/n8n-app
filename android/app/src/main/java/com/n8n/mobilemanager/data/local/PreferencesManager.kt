@@ -38,6 +38,7 @@ class PreferencesManager @Inject constructor(
         // Notifications
         val NOTIFY_ERRORS = booleanPreferencesKey("notify_errors")
         val NOTIFY_SUCCESS = booleanPreferencesKey("notify_success")
+        val LAST_ERROR_CHECK_TIMESTAMP = longPreferencesKey("last_error_check_timestamp")
         
         // Sync
         val AUTO_REFRESH_INTERVAL = intPreferencesKey("auto_refresh_interval")
@@ -48,6 +49,10 @@ class PreferencesManager @Inject constructor(
         
         // Onboarding
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        
+        // Credentials Auth
+        val CREDENTIALS_EMAIL = stringPreferencesKey("credentials_email")
+        val CREDENTIALS_PASSWORD = stringPreferencesKey("credentials_password")
     }
 
     // ==================== Theme ====================
@@ -124,6 +129,14 @@ class PreferencesManager @Inject constructor(
     suspend fun setNotifySuccess(enabled: Boolean) {
         dataStore.edit { it[PreferencesKeys.NOTIFY_SUCCESS] = enabled }
     }
+    
+    val lastErrorCheckTimestamp: Flow<Long> = dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.LAST_ERROR_CHECK_TIMESTAMP] ?: 0L }
+        
+    suspend fun setLastErrorCheckTimestamp(timestamp: Long) {
+        dataStore.edit { it[PreferencesKeys.LAST_ERROR_CHECK_TIMESTAMP] = timestamp }
+    }
 
     // ==================== Sync ====================
     
@@ -167,6 +180,30 @@ class PreferencesManager @Inject constructor(
     
     suspend fun setOnboardingCompleted(completed: Boolean) {
         dataStore.edit { it[PreferencesKeys.ONBOARDING_COMPLETED] = completed }
+    }
+
+    // ==================== Credentials Auth ====================
+
+    val credentialsEmail: Flow<String?> = dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.CREDENTIALS_EMAIL] }
+
+    val credentialsPassword: Flow<String?> = dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.CREDENTIALS_PASSWORD] }
+
+    suspend fun setCredentialsAuth(email: String, password: String) {
+        dataStore.edit { 
+            it[PreferencesKeys.CREDENTIALS_EMAIL] = email
+            it[PreferencesKeys.CREDENTIALS_PASSWORD] = password
+        }
+    }
+
+    suspend fun clearCredentialsAuth() {
+        dataStore.edit { 
+            it.remove(PreferencesKeys.CREDENTIALS_EMAIL)
+            it.remove(PreferencesKeys.CREDENTIALS_PASSWORD)
+        }
     }
 
     // ==================== Clear All ====================

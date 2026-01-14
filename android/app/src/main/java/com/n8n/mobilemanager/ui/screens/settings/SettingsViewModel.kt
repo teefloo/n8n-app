@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.n8n.mobilemanager.data.local.PreferencesManager
 import com.n8n.mobilemanager.data.model.N8nInstance
 import com.n8n.mobilemanager.data.repository.N8nRepository
+import com.n8n.mobilemanager.utils.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -38,7 +39,8 @@ sealed class ConnectionTestResult {
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repository: N8nRepository,
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    private val notificationHelper: NotificationHelper
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -117,6 +119,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesManager.setNotifySuccess(enabled)
         }
+    }
+
+    fun testNotification() {
+        notificationHelper.showTestNotification()
     }
 
     // ==================== Instances ====================

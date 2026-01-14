@@ -1,0 +1,21 @@
+﻿--------- beginning of main
+01-13 03:06:43.560  7731  7731 D StatsGrid: Rendering stats: workflows=0, active=0, success=0, failed=0
+01-13 03:06:43.780  7731  7731 D DashboardViewModel: loadStatsAndExecutions: Starting parallel load for period LAST_24H
+01-13 03:06:47.339  7731  7731 D DashboardViewModel: loadStatsAndExecutions: Parallel load completed in 3559ms
+01-13 03:06:47.339  7731  7731 D DashboardViewModel: loadStatsAndExecutions: 10 executions loaded
+01-13 03:06:47.339  7731  7731 D DashboardViewModel: loadStatsAndExecutions: Stats loaded successfully
+01-13 03:06:47.341  7731  7731 D DashboardViewModel: preloadAllPeriods: Starting preload for all periods except LAST_24H
+01-13 03:06:47.352  7731  7731 D StatsGrid: Rendering stats: workflows=9, active=8, success=444, failed=327
+01-13 03:06:54.537  7731  7759 D DashboardViewModel: preloadAllPeriods: LAST_7D loaded - stats + 10 executions
+01-13 03:06:54.829  7731  7831 D DashboardViewModel: preloadAllPeriods: ALL_TIME loaded - stats + 10 executions
+01-13 03:06:56.133  7731  7830 D DashboardViewModel: preloadAllPeriods: LAST_30D loaded - stats + 10 executions
+01-13 03:06:56.141  7731  7731 D DashboardViewModel: preloadAllPeriods: Completed in 8800ms, cached periods: [LAST_24H, LAST_7D, ALL_TIME, LAST_30D]
+01-13 03:07:27.867  7731  7731 D DashboardViewModel: loadStatsAndExecutions: Starting parallel load for period LAST_24H
+01-13 03:07:30.400  7731  7731 D DashboardViewModel: loadStatsAndExecutions: Parallel load completed in 2533ms
+01-13 03:07:30.400  7731  7731 D DashboardViewModel: loadStatsAndExecutions: 10 executions loaded
+01-13 03:07:30.402  7731  7731 D DashboardViewModel: loadStatsAndExecutions: Stats loaded successfully
+01-13 03:07:30.403  7731  7731 D DashboardViewModel: preloadAllPeriods: Starting preload for all periods except LAST_24H
+01-13 03:07:35.183  7731  7830 D DashboardViewModel: preloadAllPeriods: LAST_7D loaded - stats + 10 executions
+01-13 03:07:35.789  7731  7826 D DashboardViewModel: preloadAllPeriods: ALL_TIME loaded - stats + 10 executions
+01-13 03:07:36.723  7731  7782 D DashboardViewModel: preloadAllPeriods: LAST_30D loaded - stats + 10 executions
+01-13 03:07:36.723  7731  7731 D DashboardViewModel: preloadAllPeriods: Completed in 6320ms, cached periods: [LAST_24H, LAST_7D, ALL_TIME, LAST_30D]

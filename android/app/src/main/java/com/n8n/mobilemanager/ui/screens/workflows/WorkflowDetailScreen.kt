@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -205,7 +207,7 @@ private fun WorkflowDetailTopBar(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         NeumorphicIconButton(
-            icon = Icons.Default.ArrowBack,
+            icon = Icons.AutoMirrored.Filled.ArrowBack,
             onClick = onBackClick,
             size = 44.dp,
             iconSize = 22.dp,
@@ -833,17 +835,17 @@ private fun getNodeTypeIcon(type: String): ImageVector {
             type.contains("cron", ignoreCase = true) -> Icons.Outlined.Schedule
         type.contains("trigger", ignoreCase = true) -> Icons.Outlined.PlayArrow
         type.contains("if", ignoreCase = true) || 
-            type.contains("switch", ignoreCase = true) -> Icons.Outlined.CallSplit
+            type.contains("switch", ignoreCase = true) -> Icons.AutoMirrored.Outlined.CallSplit
         type.contains("code", ignoreCase = true) || 
             type.contains("function", ignoreCase = true) -> Icons.Outlined.Code
         type.contains("set", ignoreCase = true) -> Icons.Outlined.EditNote
-        type.contains("merge", ignoreCase = true) -> Icons.Outlined.MergeType
-        type.contains("split", ignoreCase = true) -> Icons.Outlined.CallSplit
+        type.contains("merge", ignoreCase = true) -> Icons.AutoMirrored.Outlined.MergeType
+        type.contains("split", ignoreCase = true) -> Icons.AutoMirrored.Outlined.CallSplit
         type.contains("loop", ignoreCase = true) -> Icons.Outlined.Loop
         type.contains("wait", ignoreCase = true) -> Icons.Outlined.HourglassEmpty
         type.contains("email", ignoreCase = true) || 
             type.contains("gmail", ignoreCase = true) -> Icons.Outlined.Email
-        type.contains("slack", ignoreCase = true) -> Icons.Outlined.Chat
+        type.contains("slack", ignoreCase = true) -> Icons.AutoMirrored.Outlined.Chat
         type.contains("database", ignoreCase = true) || 
             type.contains("postgres", ignoreCase = true) ||
             type.contains("mysql", ignoreCase = true) -> Icons.Outlined.Storage

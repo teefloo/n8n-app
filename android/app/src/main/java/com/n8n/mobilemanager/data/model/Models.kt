@@ -64,7 +64,8 @@ data class Node(
     val position: List<Double>,
     val parameters: Map<String, Any>? = null,
     val typeVersion: Double = 1.0,
-    val disabled: Boolean = false
+    val disabled: Boolean = false,
+    val credentials: Map<String, Any>? = null
 )
 
 /**

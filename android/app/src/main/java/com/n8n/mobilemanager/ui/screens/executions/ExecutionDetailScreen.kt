@@ -8,6 +8,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +29,7 @@ import java.util.*
 
 @Composable
 fun ExecutionDetailScreen(
+    executionId: String,
     onNavigateBack: () -> Unit,
     onNavigateToExecution: (String) -> Unit, /* Pour le retry qui créerait une nouvelle exécution éventuellement */
     viewModel: ExecutionDetailViewModel = hiltViewModel()
@@ -104,7 +107,7 @@ private fun NeumorphicDetailTopBar(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         NeumorphicIconButton(
-            icon = Icons.Default.ArrowBack,
+            icon = Icons.AutoMirrored.Filled.ArrowBack,
             onClick = onBackClick,
             size = 44.dp,
             iconSize = 22.dp,

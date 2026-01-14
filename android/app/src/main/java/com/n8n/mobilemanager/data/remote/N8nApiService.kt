@@ -91,8 +91,28 @@ interface N8nApiService {
         @Query("cursor") cursor: String? = null
     ): Response<ApiResponse<CredentialDto>>
 
+    @GET("rest/credentials")
+    suspend fun getCredentialsRest(
+        @Query("filter") filter: String? = null
+    ): Response<ApiResponse<CredentialDto>>
+
+    @GET("credentials")
+    suspend fun getCredentialsInternal(): Response<ApiResponse<CredentialDto>>
+
     @GET("api/v1/credentials/{id}")
     suspend fun getCredential(
+        @Path("id") id: String,
+        @Query("includeData") includeData: Boolean = false
+    ): Response<CredentialDto>
+
+    @GET("rest/credentials/{id}")
+    suspend fun getCredentialRest(
+        @Path("id") id: String,
+        @Query("includeData") includeData: Boolean = false
+    ): Response<CredentialDto>
+
+    @GET("credentials/{id}")
+    suspend fun getCredentialInternal(
         @Path("id") id: String,
         @Query("includeData") includeData: Boolean = false
     ): Response<CredentialDto>
@@ -141,4 +161,16 @@ interface N8nApiService {
         @Path("webhookPath", encoded = true) webhookPath: String,
         @Body data: Map<String, Any>? = null
     ): Response<Any>
+
+    // ==================== Authentication ====================
+
+    @POST("login")
+    suspend fun login(
+        @Body request: LoginRequest
+    ): Response<LoginResponse>
+
+    @POST("rest/login")
+    suspend fun loginRest(
+        @Body request: LoginRequest
+    ): Response<LoginResponse>
 }

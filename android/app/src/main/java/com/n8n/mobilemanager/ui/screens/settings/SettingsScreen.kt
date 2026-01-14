@@ -11,6 +11,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -171,29 +173,69 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     cornerRadius = 20.dp
                 ) {
-                    NeumorphicSettingsToggleRow(
-                        icon = Icons.Outlined.ErrorOutline,
-                        title = "Alertes d'erreurs",
-                        subtitle = "Recevoir une notification en cas d'échec",
-                        checked = uiState.notifyErrors,
-                        onCheckedChange = viewModel::setNotifyErrors
-                    )
-                    
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp)
-                            .height(1.dp)
-                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
-                    )
-                    
-                    NeumorphicSettingsToggleRow(
-                        icon = Icons.Outlined.CheckCircleOutline,
-                        title = "Notifications de succès",
-                        subtitle = "Recevoir une notification en cas de succès",
-                        checked = uiState.notifySuccess,
-                        onCheckedChange = viewModel::setNotifySuccess
-                    )
+                    Column {
+                        NeumorphicSettingsToggleRow(
+                            icon = Icons.Outlined.ErrorOutline,
+                            title = "Alertes d'erreurs",
+                            subtitle = "Recevoir une notification en cas d'échec",
+                            checked = uiState.notifyErrors,
+                            onCheckedChange = viewModel::setNotifyErrors
+                        )
+                        
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp)
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                        )
+                        
+                        NeumorphicSettingsToggleRow(
+                            icon = Icons.Outlined.CheckCircleOutline,
+                            title = "Notifications de succès",
+                            subtitle = "Recevoir une notification en cas de succès",
+                            checked = uiState.notifySuccess,
+                            onCheckedChange = viewModel::setNotifySuccess
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp)
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.testNotification() }
+                                .padding(18.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(N8nPrimary.copy(alpha = 0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.BugReport,
+                                    contentDescription = null,
+                                    tint = N8nPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Text(
+                                text = "Tester la notification",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = N8nPrimary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
             }
             
@@ -393,7 +435,7 @@ private fun NeumorphicSettingsTopBar(onBackClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         NeumorphicIconButton(
-            icon = Icons.Default.ArrowBack,
+            icon = Icons.AutoMirrored.Filled.ArrowBack,
             onClick = onBackClick,
             size = 44.dp,
             iconSize = 22.dp,
@@ -590,27 +632,15 @@ private fun NeumorphicInstanceCard(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .neumorphicShadow(
+                    .neumorphicRaised(
                         lightShadowColor = neumorphColors.lightShadow,
                         darkShadowColor = neumorphColors.darkShadow,
+                        backgroundColor = if (isActive) N8nPrimary.copy(alpha = 0.2f) else neumorphColors.background,
                         shadowOffset = 3.dp,
+                        shadowBlur = 6.dp,
                         cornerRadius = 14.dp
                     )
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(
-                        if (isActive) {
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    N8nPrimary.copy(alpha = 0.15f),
-                                    N8nPrimary.copy(alpha = 0.25f)
-                                )
-                            )
-                        } else {
-                            Brush.linearGradient(
-                                colors = listOf(neumorphColors.surface, neumorphColors.surface)
-                            )
-                        }
-                    ),
+                    .clip(RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -716,8 +746,7 @@ private fun NeumorphicInstanceFormContent(
             value = name,
             onValueChange = onNameChange,
             placeholder = "Mon instance n8n",
-            leadingIcon = Icons.Outlined.Label,
-            modifier = Modifier.fillMaxWidth()
+                            leadingIcon = Icons.AutoMirrored.Outlined.Label,            modifier = Modifier.fillMaxWidth()
         )
         
         // URL field

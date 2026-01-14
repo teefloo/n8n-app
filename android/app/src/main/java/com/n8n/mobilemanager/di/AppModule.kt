@@ -112,6 +112,38 @@ class ApiServiceFactory(
         
         return retrofit.create(N8nApiService::class.java)
     }
+
+    fun createWithCookie(baseUrl: String, cookie: String? = null): N8nApiService {
+        val finalBaseUrl = baseUrl.trimEnd('/') + "/"
+        // Pas de cache pour les sessions temporaires
+        
+        val authInterceptor = Interceptor { chain ->
+            val builder = chain.request().newBuilder()
+                .addHeader("Accept", "application/json")
+                .addHeader("Content-Type", "application/json")
+            
+            if (cookie != null) {
+                builder.addHeader("Cookie", cookie)
+            }
+            
+            chain.proceed(builder.build())
+        }
+        
+        val okHttpClient = OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+        
+        return Retrofit.Builder()
+            .baseUrl(finalBaseUrl)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(N8nApiService::class.java)
+    }
     
     fun clearCache() {
         retrofitCache.clear()

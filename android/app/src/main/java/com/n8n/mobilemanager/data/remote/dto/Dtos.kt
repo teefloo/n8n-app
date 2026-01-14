@@ -54,7 +54,8 @@ data class NodeDto(
     val position: List<Double>? = null,
     val parameters: Map<String, Any>? = null,
     val typeVersion: Double? = 1.0,
-    val disabled: Boolean? = false
+    val disabled: Boolean? = false,
+    val credentials: Map<String, Any>? = null
 ) {
     fun toNode(): Node = Node(
         id = id,
@@ -63,7 +64,8 @@ data class NodeDto(
         position = position ?: emptyList(),
         parameters = parameters,
         typeVersion = typeVersion ?: 1.0,
-        disabled = disabled ?: false
+        disabled = disabled ?: false,
+        credentials = credentials
     )
 }
 
@@ -113,6 +115,7 @@ data class ExecutionDto(
             ?: if (finished) ExecutionStatus.SUCCESS else ExecutionStatus.RUNNING,
         startedAt = startedAt ?: "",
         stoppedAt = stoppedAt,
+        data = data?.toExecutionData(),
         retryOf = retryOf,
         retrySuccessId = retrySuccessId
     )
@@ -120,28 +123,48 @@ data class ExecutionDto(
 
 data class ExecutionDataDto(
     val resultData: ResultDataDto? = null
-)
+) {
+    fun toExecutionData(): ExecutionData = ExecutionData(
+        resultData = resultData?.toResultData()
+    )
+}
 
 data class ResultDataDto(
     val runData: Map<String, Any>? = null,
     val lastNodeExecuted: String? = null,
     val error: ExecutionErrorDto? = null
-)
+) {
+    fun toResultData(): ResultData = ResultData(
+        runData = runData,
+        lastNodeExecuted = lastNodeExecuted,
+        error = error?.toExecutionError()
+    )
+}
 
 data class ExecutionErrorDto(
     val message: String,
     val name: String? = null,
-    val node: String? = null,
+    val node: Any? = null,
     val stack: String? = null,
     val timestamp: Long? = null
 ) {
-    fun toExecutionError(): ExecutionError = ExecutionError(
-        message = message,
-        name = name,
-        node = node,
-        stack = stack,
-        timestamp = timestamp
-    )
+    fun toExecutionError(): ExecutionError {
+        // Le champ node peut être une String (nom du noeud) ou un Objet contenant des détails
+        // On essaie d'extraire le nom si c'est une map, sinon on convertit en String
+        val nodeName = when (node) {
+            is String -> node
+            is Map<*, *> -> node["name"]?.toString() ?: node.toString()
+            else -> node?.toString()
+        }
+        
+        return ExecutionError(
+            message = message,
+            name = name,
+            node = nodeName,
+            stack = stack,
+            timestamp = timestamp
+        )
+    }
 }
 
 /**
@@ -228,4 +251,19 @@ data class TriggerWorkflowRequest(
 data class TriggerWorkflowResponse(
     val data: Any? = null,
     val executionId: String? = null
+)
+
+/**
+ * Requête de connexion pour l'authentification fallback
+ */
+data class LoginRequest(
+    val emailOrLdapLoginId: String,
+    val password: String
+)
+
+/**
+ * Réponse de connexion
+ */
+data class LoginResponse(
+    val data: Any? = null
 )

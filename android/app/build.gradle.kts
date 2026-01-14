@@ -74,6 +74,9 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.compiler) // Re-use compiler for hilt-work if needed, or explicitly add hilt-compiler again if issues arise, but usually same compiler works. 
+    // Actually, hilt-compiler handles both. simpler:
 
     // Networking
     implementation(libs.retrofit)
@@ -100,4 +103,11 @@ dependencies {
 
     // Firebase (Push Notifications)
     implementation(libs.firebase.messaging)
+
+    // Testing
+    testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+    testImplementation(libs.androidx.core.testing)
 }

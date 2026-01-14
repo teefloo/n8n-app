@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -93,8 +95,8 @@ fun WorkflowsScreen(
             
             // Content
             PullToRefreshBox(
-                isRefreshing = uiState.isLoading,
-                onRefresh = { viewModel.loadWorkflows() },
+                isRefreshing = uiState.isLoading || uiState.isRefreshing,
+                onRefresh = { viewModel.refresh() },
                 modifier = Modifier.fillMaxSize()
             ) {
                 if (uiState.filteredWorkflows.isEmpty() && !uiState.isLoading) {
@@ -222,7 +224,7 @@ private fun NeumorphicTopBar(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             NeumorphicIconButton(
-                icon = Icons.Default.ArrowBack,
+                icon = Icons.AutoMirrored.Filled.ArrowBack,
                 onClick = onBackClick,
                 size = 44.dp,
                 iconSize = 22.dp,

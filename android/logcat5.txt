@@ -1,0 +1,12 @@
+﻿--------- beginning of main
+01-13 03:09:58.824  8019  8019 D StatsGrid: Rendering stats: workflows=0, active=0, success=0, failed=0
+01-13 03:09:59.039  8019  8019 D DashboardViewModel: loadStatsAndExecutions: Starting parallel load for period LAST_24H
+01-13 03:10:02.616  8019  8019 D DashboardViewModel: loadStatsAndExecutions: Parallel load completed in 3577ms
+01-13 03:10:02.616  8019  8019 D DashboardViewModel: loadStatsAndExecutions: 10 executions loaded
+01-13 03:10:02.617  8019  8019 D DashboardViewModel: loadStatsAndExecutions: Stats loaded successfully
+01-13 03:10:02.618  8019  8019 D DashboardViewModel: preloadAllPeriods: Starting preload for all periods except LAST_24H
+01-13 03:10:02.635  8019  8019 D StatsGrid: Rendering stats: workflows=9, active=8, success=444, failed=327
+01-13 03:10:09.635  8019  8111 D DashboardViewModel: preloadAllPeriods: LAST_7D loaded - stats + 10 executions
+01-13 03:10:10.066  8019  8119 D DashboardViewModel: preloadAllPeriods: ALL_TIME loaded - stats + 10 executions
+01-13 03:10:11.280  8019  8114 D DashboardViewModel: preloadAllPeriods: LAST_30D loaded - stats + 10 executions
+01-13 03:10:11.281  8019  8019 D DashboardViewModel: preloadAllPeriods: Completed in 8663ms, cached periods: [LAST_24H, LAST_7D, ALL_TIME, LAST_30D]

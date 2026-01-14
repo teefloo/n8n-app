@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,7 +34,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.n8n.mobilemanager.ui.components.neumorphicShadow
+import com.n8n.mobilemanager.ui.components.neumorphicRaised
+import com.n8n.mobilemanager.ui.components.neumorphicColors
 import com.n8n.mobilemanager.data.repository.N8nRepository
 import com.n8n.mobilemanager.ui.screens.credentials.CredentialsScreen
 import com.n8n.mobilemanager.ui.screens.dashboard.DashboardScreen
@@ -56,8 +59,8 @@ sealed class Screen(
     object Login : Screen(
         route = "login",
         title = "Connexion",
-        iconOutlined = Icons.Outlined.Login,
-        iconFilled = Icons.Filled.Login
+        iconOutlined = Icons.AutoMirrored.Outlined.Login,
+        iconFilled = Icons.AutoMirrored.Filled.Login
     )
     
     object Dashboard : Screen(
@@ -273,11 +276,16 @@ fun N8nNavigation(
             }
             
             // Execution Detail
-            composable(Screen.ExecutionDetail.route) {
+            composable(
+                route = Screen.ExecutionDetail.route,
+                arguments = listOf(androidx.navigation.navArgument("executionId") { type = androidx.navigation.NavType.StringType })
+            ) { backStackEntry ->
+                val executionId = backStackEntry.arguments?.getString("executionId") ?: ""
                 ExecutionDetailScreen(
+                    executionId = executionId,
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToExecution = { executionId ->
-                        navController.navigate(Screen.ExecutionDetail.createRoute(executionId))
+                    onNavigateToExecution = { newExecutionId ->
+                        navController.navigate(Screen.ExecutionDetail.createRoute(newExecutionId))
                     }
                 )
             }
@@ -297,9 +305,8 @@ fun N8nNavigation(
             // Credential Detail
             composable(Screen.CredentialDetail.route) { backStackEntry ->
                 val credentialId = backStackEntry.arguments?.getString("credentialId") ?: ""
-                // TODO: CredentialDetailScreen
-                CredentialsScreen(
-                    onNavigateToCredential = {},
+                com.n8n.mobilemanager.ui.screens.credentials.CredentialDetailScreen(
+                    credentialId = credentialId,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -345,22 +352,15 @@ private fun NeumorphicBottomNavBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(72.dp)
-                .neumorphicShadow(
+                .neumorphicRaised(
                     lightShadowColor = neumorphColors.lightShadow,
                     darkShadowColor = neumorphColors.darkShadow,
-                    shadowOffset = 8.dp,
-                    shadowRadius = 16.dp,
-                    cornerRadius = 28.dp
+                    backgroundColor = neumorphColors.background,
+                    shadowOffset = NeumorphicDimensions.LargeShadowOffset.dp,
+                    shadowBlur = NeumorphicDimensions.LargeShadowBlur.dp,
+                    cornerRadius = NeumorphicDimensions.LargeCornerRadius.dp
                 )
-                .clip(RoundedCornerShape(28.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            neumorphColors.surface,
-                            neumorphColors.surface.copy(alpha = 0.98f)
-                        )
-                    )
-                )
+                .clip(RoundedCornerShape(NeumorphicDimensions.LargeCornerRadius.dp))
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
                 val itemWidth = maxWidth / bottomNavScreens.size

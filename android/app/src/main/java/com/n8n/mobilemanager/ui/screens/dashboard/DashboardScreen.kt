@@ -1,12 +1,16 @@
 package com.n8n.mobilemanager.ui.screens.dashboard
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -17,10 +21,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.n8n.mobilemanager.data.model.ExecutionStatus
+import com.n8n.mobilemanager.data.model.Execution
+import com.n8n.mobilemanager.data.model.ExecutionMode
+import com.n8n.mobilemanager.data.model.InstanceStats
 import com.n8n.mobilemanager.ui.components.*
 import com.n8n.mobilemanager.ui.theme.*
 import java.text.SimpleDateFormat
@@ -29,126 +39,53 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    viewModel: DashboardViewModel = hiltViewModel(),
-    onNavigateToWorkflows: () -> Unit = {},
-    onNavigateToExecutions: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {},
-    onNavigateToExecution: (String) -> Unit = {}
+    onNavigateToWorkflows: () -> Unit,
+    onNavigateToExecutions: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToExecution: (String) -> Unit,
+    viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
-    PullToRefreshBox(
-        isRefreshing = uiState.isLoading,
-        onRefresh = { viewModel.refresh() },
-        modifier = Modifier.fillMaxSize()
-    ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            // Header with instance status
-            item {
-                DashboardHeader(
-                    instanceName = uiState.instance?.name ?: "n8n Manager",
-                    isOnline = uiState.isOnline,
-                    lastRefreshTime = uiState.lastRefreshTime,
-                    onSettingsClick = onNavigateToSettings
-                )
-            }
-            
-            // No instance configured
-            if (uiState.instance == null) {
-                item {
-                    EmptyState(
-                        icon = Icons.Outlined.Cloud,
-                        title = "Aucune instance configurée",
-                        message = "Ajoutez votre instance n8n pour commencer",
-                        action = {
-                            NeumorphicButton(
-                                text = "Configurer",
-                                onClick = onNavigateToSettings,
-                                icon = Icons.Filled.Add,
-                                modifier = Modifier.width(200.dp)
-                            )
-                        }
-                    )
-                }
-            } else {
-                // Period Selector
-                item {
-                    StatsPeriodSelector(
-                        selectedPeriod = uiState.selectedPeriod,
-                        onPeriodSelected = { viewModel.setPeriod(it) }
-                    )
-                }
+    val scrollState = rememberScrollState()
 
-                // Stats Grid
-                item {
-                    StatsGrid(
-                        activeWorkflows = uiState.stats.activeWorkflows,
-                        totalWorkflows = uiState.stats.totalWorkflows,
-                        successfulExecutions = uiState.stats.successfulExecutions,
-                        failedExecutions = uiState.stats.failedExecutions,
-                        averageExecutionTimeMs = uiState.stats.averageExecutionTime,
-                        isTotalExecutionsEstimated = uiState.stats.isTotalExecutionsEstimated,
-                        onWorkflowsClick = onNavigateToWorkflows,
-                        onExecutionsClick = onNavigateToExecutions
-                    )
-                }
-                
-                // Quick Actions
-                item {
-                    QuickActionsSection(
-                        onViewWorkflows = onNavigateToWorkflows,
-                        onViewExecutions = onNavigateToExecutions
-                    )
-                }
-                
+    Scaffold(
+        topBar = {
+            DashboardTopBar(
+                title = uiState.instance?.name ?: "Dashboard",
+                isOnline = uiState.isOnline,
+                onSettingsClick = onNavigateToSettings
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Period Selector
+                PeriodSelector(
+                    selectedPeriod = uiState.selectedPeriod,
+                    onPeriodSelected = viewModel::setPeriod
+                )
+
+                // Stats Cards Grid
+                StatsGrid(stats = uiState.stats)
+
                 // Recent Executions
-                item {
-                    SectionHeader(
-                        title = "Exécutions récentes",
-                        action = "Voir tout",
-                        onActionClick = onNavigateToExecutions
-                    )
-                }
+                RecentExecutionsSection(
+                    executions = uiState.recentExecutions,
+                    onSeeAllClick = onNavigateToExecutions,
+                    onExecutionClick = onNavigateToExecution
+                )
                 
-                if (uiState.recentExecutions.isEmpty() && !uiState.isLoading) {
-                    item {
-                        EmptyState(
-                            icon = Icons.Outlined.History,
-                            title = "Aucune exécution",
-                            message = "Les exécutions de vos workflows apparaîtront ici"
-                        )
-                    }
-                } else {
-                    items(
-                        items = uiState.recentExecutions.take(5),
-                        key = { it.id }
-                    ) { execution ->
-                        ExecutionCard(
-                            workflowName = execution.workflowName ?: "Workflow ${execution.workflowId}",
-                            status = execution.status,
-                            startedAt = formatDateTime(execution.startedAt),
-                            duration = calculateDuration(execution.startedAt, execution.stoppedAt),
-                            onClick = { onNavigateToExecution(execution.id) }
-                        )
-                    }
-                }
-                
-                // Error message with neumorphic style
-                uiState.error?.let { error ->
-                    item {
-                        NeumorphicErrorCard(error = error)
-                    }
-                }
-            }
-            
-            // Bottom spacer for navigation bar
-            item {
                 Spacer(modifier = Modifier.height(60.dp))
             }
         }
@@ -156,95 +93,32 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun StatsPeriodSelector(
-    selectedPeriod: StatsPeriod,
-    onPeriodSelected: (StatsPeriod) -> Unit
-) {
-    val neumorphColors = neumorphicColors()
-    
-    NeumorphicCard(
-        modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 16.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(6.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            StatsPeriod.values().forEach { period ->
-                val isSelected = period == selectedPeriod
-                
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            if (isSelected) {
-                                Brush.horizontalGradient(
-                                    colors = listOf(N8nPrimary, N8nPrimaryVariant)
-                                )
-                            } else {
-                                Brush.horizontalGradient(
-                                    colors = listOf(
-                                        neumorphColors.surface,
-                                        neumorphColors.surface
-                                    )
-                                )
-                            }
-                        )
-                        .clickable { onPeriodSelected(period) }
-                        .padding(vertical = 10.dp, horizontal = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = period.label,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) 
-                            androidx.compose.ui.graphics.Color.White 
-                        else 
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DashboardHeader(
-    instanceName: String,
+fun DashboardTopBar(
+    title: String,
     isOnline: Boolean,
-    lastRefreshTime: Long,
     onSettingsClick: () -> Unit
 ) {
-    val neumorphColors = neumorphicColors()
-    
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
             Text(
-                text = "Bonjour 👋",
-                style = MaterialTheme.typography.titleMedium,
+                text = "Bonjour,",
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = instanceName,
+                    text = title,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
+                Spacer(modifier = Modifier.width(8.dp))
                 StatusIndicator(isOnline = isOnline)
             }
         }
@@ -252,454 +126,352 @@ private fun DashboardHeader(
         NeumorphicIconButton(
             icon = Icons.Outlined.Settings,
             onClick = onSettingsClick,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            size = 44.dp,
+            iconSize = 22.dp,
+            tint = MaterialTheme.colorScheme.onSurface
         )
     }
 }
 
 @Composable
-private fun StatsGrid(
-    activeWorkflows: Int,
-    totalWorkflows: Int,
-    successfulExecutions: Int,
-    failedExecutions: Int,
-    averageExecutionTimeMs: Long = 0,
-    isTotalExecutionsEstimated: Boolean = false,
-    onWorkflowsClick: () -> Unit,
-    onExecutionsClick: () -> Unit
+fun StatusIndicator(isOnline: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(10.dp)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(if (isOnline) StatusSuccess else StatusError)
+    )
+}
+
+@Composable
+fun PeriodSelector(
+    selectedPeriod: StatsPeriod,
+    onPeriodSelected: (StatsPeriod) -> Unit
 ) {
-    val totalExecutions = successfulExecutions + failedExecutions
-    val failureRate = if (totalExecutions > 0) {
-        (failedExecutions * 100f / totalExecutions)
-    } else 0f
-    
-    // Formater le temps d'exécution moyen
-    val avgTimeFormatted = formatDuration(averageExecutionTimeMs)
-    
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
     ) {
-        // Section Title
-        Text(
-            text = "📊 Insights",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        
-        // Row 1: Total Executions + Failed Executions
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            InsightCard(
-                title = "Total exécutions",
-                value = if (isTotalExecutionsEstimated) "${formatNumber(totalExecutions)}+" else formatNumber(totalExecutions),
-                icon = Icons.Filled.PlayCircle,
-                iconTint = N8nPrimary,
-                onClick = onExecutionsClick,
-                modifier = Modifier.weight(1f)
-            )
-            InsightCard(
-                title = "Échecs",
-                value = formatNumber(failedExecutions),
-                icon = Icons.Filled.Error,
-                iconTint = StatusError,
-                valueColor = if (failedExecutions > 0) StatusError else null,
-                onClick = onExecutionsClick,
-                modifier = Modifier.weight(1f)
-            )
-        }
-        
-        // Row 2: Failure Rate + Success Rate
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            InsightCard(
-                title = "Taux d'échec",
-                value = String.format("%.1f%%", failureRate),
-                icon = Icons.Filled.TrendingDown,
-                iconTint = if (failureRate > 20) StatusError else StatusWarning,
-                valueColor = if (failureRate > 20) StatusError else if (failureRate > 10) StatusWarning else StatusSuccess,
-                modifier = Modifier.weight(1f)
-            )
-            InsightCard(
-                title = "Taux de succès",
-                value = if (totalExecutions > 0) "${100 - failureRate.toInt()}%" else "—",
-                icon = Icons.Filled.CheckCircle,
-                iconTint = StatusSuccess,
-                valueColor = StatusSuccess,
-                modifier = Modifier.weight(1f)
-            )
-        }
-        
-        // Row 3: Active Workflows + Total Workflows
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            InsightCard(
-                title = "Workflows actifs",
-                value = activeWorkflows.toString(),
-                subtitle = "sur $totalWorkflows",
-                icon = Icons.Filled.AccountTree,
-                iconTint = StatusSuccess,
-                onClick = onWorkflowsClick,
-                modifier = Modifier.weight(1f)
-            )
-            InsightCard(
-                title = "Workflows total",
-                value = totalWorkflows.toString(),
-                icon = Icons.Outlined.AccountTree,
-                iconTint = N8nAccent,
-                onClick = onWorkflowsClick,
-                modifier = Modifier.weight(1f)
-            )
-        }
-        
-        // Row 4: Average Execution Time (comme "Run time (avg.)" sur n8n)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            InsightCard(
-                title = "Temps moyen",
-                value = avgTimeFormatted,
-                subtitle = "par exécution",
-                icon = Icons.Filled.Timer,
-                iconTint = N8nAccent,
-                modifier = Modifier.weight(1f)
-            )
-            // Espace vide pour équilibrer
-            Spacer(modifier = Modifier.weight(1f))
+        items(StatsPeriod.entries) { period ->
+            val isSelected = period == selectedPeriod
+            val colors = neumorphicColors()
+            
+            // Custom button for period selection
+            Box(
+                modifier = Modifier
+                    .height(36.dp)
+                    .neumorphicRaised(
+                        lightShadowColor = if (isSelected) colors.lightShadow.copy(alpha = 0.5f) else colors.lightShadow,
+                        darkShadowColor = if (isSelected) colors.darkShadow.copy(alpha = 0.5f) else colors.darkShadow,
+                        backgroundColor = if (isSelected) colors.primary else colors.background,
+                        cornerRadius = 18.dp,
+                        shadowOffset = 3.dp,
+                        shadowBlur = 6.dp
+                    )
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable { 
+                        android.util.Log.d("PeriodSelector", "Clicked on period: $period (current: $selectedPeriod)")
+                        onPeriodSelected(period) 
+                    }
+                    .padding(horizontal = 20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = period.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isSelected) Color.White else colors.onSurface,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun InsightCard(
+fun StatsGrid(stats: InstanceStats) {
+    // Log pour debug
+    android.util.Log.d("StatsGrid", "Rendering stats: workflows=${stats.totalWorkflows}, active=${stats.activeWorkflows}, success=${stats.successfulExecutions}, failed=${stats.failedExecutions}")
+    
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            StatCard(
+                modifier = Modifier.weight(1f),
+                title = "Total Workflows",
+                value = stats.totalWorkflows.toString(),
+                icon = Icons.Outlined.AccountTree,
+                color = N8nPrimary
+            )
+            StatCard(
+                modifier = Modifier.weight(1f),
+                title = "Actifs",
+                value = stats.activeWorkflows.toString(),
+                icon = Icons.Filled.PlayCircle,
+                color = StatusSuccess
+            )
+        }
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            StatCard(
+                modifier = Modifier.weight(1f),
+                title = "Succès",
+                value = stats.successfulExecutions.toString(),
+                icon = Icons.Outlined.CheckCircle,
+                color = StatusSuccess
+            )
+            StatCard(
+                modifier = Modifier.weight(1f),
+                title = "Échecs",
+                value = stats.failedExecutions.toString(),
+                icon = Icons.Outlined.Error,
+                color = StatusError
+            )
+        }
+    }
+}
+
+@Composable
+fun StatCard(
+    modifier: Modifier = Modifier,
     title: String,
     value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    modifier: Modifier = Modifier,
-    subtitle: String? = null,
-    iconTint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
-    valueColor: androidx.compose.ui.graphics.Color? = null,
-    onClick: (() -> Unit)? = null
+    icon: ImageVector,
+    color: Color
 ) {
-    val neumorphColors = neumorphicColors()
-    
     NeumorphicCard(
         modifier = modifier,
-        cornerRadius = 20.dp,
-        onClick = onClick
+        cornerRadius = 16.dp
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                    .background(color.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(18.dp)
                 )
-                
-                // Neumorphic icon container
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .neumorphicShadow(
-                            lightShadowColor = neumorphColors.lightShadow,
-                            darkShadowColor = neumorphColors.darkShadow,
-                            shadowOffset = 2.dp,
-                            shadowRadius = 4.dp,
-                            cornerRadius = 10.dp
-                        )
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    iconTint.copy(alpha = 0.15f),
-                                    iconTint.copy(alpha = 0.25f)
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
             }
             
             Text(
                 text = value,
                 style = MaterialTheme.typography.headlineMedium,
-                color = valueColor ?: MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold
-            )
-            
-            subtitle?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickActionsSection(
-    onViewWorkflows: () -> Unit,
-    onViewExecutions: () -> Unit
-) {
-    val neumorphColors = neumorphicColors()
-    
-    NeumorphicCard(
-        modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 24.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = "Actions rapides",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                NeumorphicQuickActionButton(
-                    icon = Icons.Outlined.AccountTree,
-                    label = "Workflows",
-                    onClick = onViewWorkflows,
-                    modifier = Modifier.weight(1f)
-                )
-                NeumorphicQuickActionButton(
-                    icon = Icons.Outlined.History,
-                    label = "Exécutions",
-                    onClick = onViewExecutions,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 @Composable
-private fun NeumorphicQuickActionButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+fun RecentExecutionsSection(
+    executions: List<Execution>,
+    onSeeAllClick: () -> Unit,
+    onExecutionClick: (String) -> Unit
 ) {
-    val neumorphColors = neumorphicColors()
-    
-    NeumorphicButton(
-        text = label,
-        onClick = onClick,
-        icon = icon,
-        isPrimary = false,
-        modifier = modifier
-    )
-}
-
-@Composable
-private fun SectionHeader(
-    title: String,
-    action: String? = null,
-    onActionClick: () -> Unit = {}
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Exécutions récentes",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            TextButton(onClick = onSeeAllClick) {
+                Text("Voir tout", color = N8nPrimary)
+            }
+        }
         
-        action?.let {
-            TextButton(onClick = onActionClick) {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = N8nPrimary,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(
-                    imageVector = Icons.Default.ArrowForward,
-                    contentDescription = null,
-                    tint = N8nPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
+        if (executions.isEmpty()) {
+            EmptyState(
+                icon = Icons.Outlined.History,
+                title = "Aucune exécution",
+                message = "Les exécutions récentes apparaîtront ici",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                executions.take(5).forEach { execution ->
+                    ExecutionItem(
+                        execution = execution,
+                        onClick = { onExecutionClick(execution.id) }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun NeumorphicErrorCard(error: String) {
-    val neumorphColors = neumorphicColors()
+fun ExecutionItem(
+    execution: Execution,
+    onClick: () -> Unit
+) {
+    val colors = neumorphicColors()
     
     NeumorphicCard(
         modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 18.dp
+        onClick = onClick,
+        cornerRadius = 14.dp,
+        shadowOffset = 4.dp,
+        shadowBlur = 8.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            StatusError.copy(alpha = 0.08f),
-                            StatusError.copy(alpha = 0.15f)
-                        )
-                    )
-                )
-                .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Mode Icon (Trigger/Manual)
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(StatusError.copy(alpha = 0.2f)),
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(colors.onSurface.copy(alpha = 0.05f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Error,
+                    imageVector = when(execution.mode) {
+                        ExecutionMode.WEBHOOK, ExecutionMode.TRIGGER -> Icons.Outlined.Bolt
+                        ExecutionMode.MANUAL -> Icons.Outlined.PlayArrow
+                        else -> Icons.Outlined.Settings
+                    },
                     contentDescription = null,
-                    tint = StatusError,
-                    modifier = Modifier.size(24.dp)
+                    tint = colors.onSurfaceVariant.copy(alpha = 0.8f),
+                    modifier = Modifier.size(20.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column {
+            
+            Column(modifier = Modifier.weight(1f)) {
+                // Workflow Name with fallback
                 Text(
-                    text = "Erreur",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = StatusError,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = error,
+                    text = execution.workflowName ?: "Workflow ${execution.workflowId.take(5)}...",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-            }
-        }
-    }
-}
-
-// ==================== Utility Functions ====================
-
-private fun formatDateTime(dateString: String): String {
-    if (dateString.isBlank()) return "—"
-    
-    return try {
-        val outputFormat = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
-        outputFormat.timeZone = TimeZone.getDefault()
-        
-        // Essayer plusieurs formats de date
-        val formats = listOf(
-            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" to TimeZone.getTimeZone("UTC"),
-            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX" to null, // Format avec timezone
-            "yyyy-MM-dd'T'HH:mm:ss.SSS" to TimeZone.getTimeZone("UTC"),
-            "yyyy-MM-dd'T'HH:mm:ss'Z'" to TimeZone.getTimeZone("UTC"),
-            "yyyy-MM-dd'T'HH:mm:ss" to TimeZone.getTimeZone("UTC")
-        )
-        
-        for ((pattern, tz) in formats) {
-            try {
-                val inputFormat = SimpleDateFormat(pattern, Locale.getDefault())
-                if (tz != null) inputFormat.timeZone = tz
-                val date = inputFormat.parse(dateString)
-                if (date != null) {
-                    return outputFormat.format(date)
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // Details Row: ID • Time • Duration
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // ID
+                    Text(
+                        text = "#${execution.id}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    
+                    // Separator
+                    Box(
+                        modifier = Modifier
+                            .size(3.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(colors.onSurfaceVariant.copy(alpha = 0.4f))
+                    )
+                    
+                    // Time
+                    Text(
+                        text = formatTime(execution.startedAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    
+                    // Duration (if available)
+                    val duration = calculateDuration(execution.startedAt, execution.stoppedAt)
+                    if (duration.isNotEmpty()) {
+                        // Separator
+                        Box(
+                            modifier = Modifier
+                                .size(3.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(colors.onSurfaceVariant.copy(alpha = 0.4f))
+                        )
+                        
+                        Icon(
+                            imageVector = Icons.Outlined.Timer,
+                            contentDescription = null,
+                            modifier = Modifier.size(10.dp),
+                            tint = colors.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                        
+                        Text(
+                            text = duration,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
                 }
-            } catch (e: Exception) {
-                // Essayer le format suivant
             }
+            
+            ExecutionStatusChip(status = execution.status)
         }
+    }
+}
+
+private fun calculateDuration(start: String, end: String?): String {
+    if (end == null) return ""
+    try {
+        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        // Try alternate format if first fails
+        val format2 = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
         
-        dateString
+        val startTime = try { format.parse(start)?.time } catch (e: Exception) { format2.parse(start)?.time } ?: return ""
+        val endTime = try { format.parse(end)?.time } catch (e: Exception) { format2.parse(end)?.time } ?: return ""
+        
+        val diff = endTime - startTime
+        return when {
+            diff < 1000 -> "${diff}ms"
+            diff < 60000 -> "${diff/1000}s"
+            else -> "${diff/60000}m ${diff%60000/1000}s"
+        }
     } catch (e: Exception) {
-        dateString
+        return ""
     }
 }
 
-private fun calculateDuration(startedAt: String, stoppedAt: String?): String? {
-    if (stoppedAt == null) return null
+private fun formatTime(dateString: String): String {
     return try {
-        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        val start = format.parse(startedAt)
-        val stop = format.parse(stoppedAt)
-        if (start != null && stop != null) {
-            val durationMs = stop.time - start.time
-            when {
-                durationMs < 1000 -> "${durationMs}ms"
-                durationMs < 60000 -> "${durationMs / 1000}s"
-                else -> "${durationMs / 60000}m ${(durationMs % 60000) / 1000}s"
-            }
-        } else null
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        inputFormat.timeZone = TimeZone.getTimeZone("UTC")
+        val outputFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+        outputFormat.timeZone = TimeZone.getDefault()
+        val date = inputFormat.parse(dateString)
+        date?.let { outputFormat.format(it) } ?: ""
     } catch (e: Exception) {
-        null
-    }
-}
-
-private fun calculateSuccessRate(success: Int, failed: Int): String {
-    val total = success + failed
-    return if (total > 0) {
-        "${(success * 100 / total)}%"
-    } else {
-        "—"
-    }
-}
-
-private fun formatNumber(number: Int): String {
-    return when {
-        number >= 1000000 -> String.format("%.1fM", number / 1000000f)
-        number >= 1000 -> String.format("%.1fK", number / 1000f)
-        else -> number.toString()
-    }
-}
-
-private fun formatDuration(durationMs: Long): String {
-    return when {
-        durationMs <= 0 -> "—"
-        durationMs < 1000 -> "${durationMs}ms"
-        durationMs < 60000 -> String.format("%.1fs", durationMs / 1000f)
-        durationMs < 3600000 -> {
-            val minutes = durationMs / 60000
-            val seconds = (durationMs % 60000) / 1000
-            "${minutes}m ${seconds}s"
-        }
-        else -> {
-            val hours = durationMs / 3600000
-            val minutes = (durationMs % 3600000) / 60000
-            "${hours}h ${minutes}m"
-        }
+        ""
     }
 }

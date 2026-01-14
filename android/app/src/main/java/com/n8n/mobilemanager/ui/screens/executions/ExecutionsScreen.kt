@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -62,8 +64,7 @@ fun ExecutionsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 NeumorphicFilterButton(
-                    label = uiState.selectedStatus?.name?.lowercase()?.replaceFirstChar { it.uppercase() } 
-                        ?: "Statut",
+                    label = uiState.selectedStatus?.let { getStatusLabel(it) } ?: "Statut",
                     isActive = uiState.selectedStatus != null,
                     onClick = { showStatusFilterSheet = true },
                     onClear = if (uiState.selectedStatus != null) {
@@ -100,8 +101,8 @@ fun ExecutionsScreen(
             
             // Content
             PullToRefreshBox(
-                isRefreshing = uiState.isLoading,
-                onRefresh = { viewModel.loadData() },
+                isRefreshing = uiState.isLoading || uiState.isRefreshing,
+                onRefresh = { viewModel.refresh() },
                 modifier = Modifier.fillMaxSize()
             ) {
                 if (uiState.filteredExecutions.isEmpty() && !uiState.isLoading) {
@@ -207,7 +208,7 @@ private fun NeumorphicExecutionTopBar(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         NeumorphicIconButton(
-            icon = Icons.Default.ArrowBack,
+            icon = Icons.AutoMirrored.Filled.ArrowBack,
             onClick = onBackClick,
             size = 44.dp,
             iconSize = 22.dp,
@@ -450,15 +451,14 @@ private fun NeumorphicStatusFilterContent(
         
         val filterableStatuses = listOf(
             ExecutionStatus.ERROR,
-            ExecutionStatus.CANCELED,
-            ExecutionStatus.QUEUED,
-            ExecutionStatus.RUNNING,
             ExecutionStatus.SUCCESS,
-            ExecutionStatus.WAITING
+            ExecutionStatus.RUNNING,
+            ExecutionStatus.WAITING,
+            ExecutionStatus.CANCELED
         )
         
         filterableStatuses.forEach { status ->
-            val label = status.name.lowercase().replaceFirstChar { it.uppercase() }
+            val label = getStatusLabel(status)
             
             NeumorphicStatusFilterOption(
                 status = status,

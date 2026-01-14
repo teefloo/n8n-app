@@ -25,11 +25,11 @@ class ExecutionDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val executionId: String = checkNotNull(savedStateHandle["executionId"])
+    private val executionId: String = savedStateHandle.get<String>("executionId") ?: ""
     
     private val _uiState = MutableStateFlow(ExecutionDetailUiState())
     val uiState: StateFlow<ExecutionDetailUiState> = _uiState.asStateFlow()
-
+    
     init {
         loadExecution()
     }

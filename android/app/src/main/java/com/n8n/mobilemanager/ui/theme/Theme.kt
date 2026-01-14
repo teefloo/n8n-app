@@ -3,215 +3,113 @@ package com.n8n.mobilemanager.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
-// ==================== Neumorphic Shadow Configuration ====================
-
-data class NeumorphicShadows(
-    val lightShadowColor: Color,
-    val darkShadowColor: Color,
-    val shadowElevation: Dp = 8.dp,
-    val shadowBlur: Dp = 16.dp,
-    val shadowOffset: Dp = 6.dp
-)
-
-data class NeumorphicColors(
-    val background: Color,
-    val surface: Color,
-    val lightShadow: Color,
-    val darkShadow: Color,
-    val pressedBackground: Color
-)
-
-val LocalNeumorphicColors = staticCompositionLocalOf {
-    NeumorphicColors(
-        background = NeumorphBackgroundLight,
-        surface = NeumorphSurfaceLight,
-        lightShadow = ShadowLightColor,
-        darkShadow = ShadowDarkColorLight,
-        pressedBackground = NeumorphPressedLight
-    )
-}
-
-val LightNeumorphicColors = NeumorphicColors(
-    background = NeumorphBackgroundLight,
-    surface = NeumorphSurfaceLight,
-    lightShadow = ShadowLightColor,
-    darkShadow = ShadowDarkColorLight,
-    pressedBackground = NeumorphPressedLight
-)
-
-val DarkNeumorphicColors = NeumorphicColors(
-    background = NeumorphBackgroundDark,
-    surface = NeumorphSurfaceDark,
-    lightShadow = ShadowLightColorDark,
-    darkShadow = ShadowDarkColorDark,
-    pressedBackground = NeumorphPressedDark
-)
-
-// ==================== Color Schemes ====================
-
-private val LightColorScheme = lightColorScheme(
-    primary = N8nPrimary,
-    onPrimary = Color.White,
-    primaryContainer = N8nPrimaryLight.copy(alpha = 0.2f),
-    onPrimaryContainer = N8nPrimary,
-    
-    secondary = N8nAccent,
-    onSecondary = Color.White,
-    secondaryContainer = N8nAccentMuted.copy(alpha = 0.3f),
-    onSecondaryContainer = N8nAccent,
-    
-    tertiary = StatusInfo,
-    onTertiary = Color.White,
-    tertiaryContainer = StatusInfoMuted.copy(alpha = 0.3f),
-    onTertiaryContainer = StatusInfo,
-    
-    error = StatusError,
-    onError = Color.White,
-    errorContainer = StatusErrorMuted.copy(alpha = 0.3f),
-    onErrorContainer = StatusError,
-    
-    background = NeumorphBackgroundLight,
-    onBackground = TextPrimaryLight,
-    
-    surface = NeumorphSurfaceLight,
-    onSurface = TextPrimaryLight,
-    surfaceVariant = NeumorphSurfaceLight,
-    onSurfaceVariant = TextSecondaryLight,
-    
-    outline = DividerLight,
-    outlineVariant = DividerLight.copy(alpha = 0.5f),
-    
-    inverseSurface = NeumorphSurfaceDark,
-    inverseOnSurface = TextPrimaryDark,
-    inversePrimary = N8nPrimaryLight
-)
-
+// Neumorphic Dark Color Scheme
 private val DarkColorScheme = darkColorScheme(
     primary = N8nPrimary,
     onPrimary = Color.White,
     primaryContainer = N8nPrimary.copy(alpha = 0.2f),
-    onPrimaryContainer = N8nPrimaryLight,
+    onPrimaryContainer = N8nPrimary,
     
     secondary = N8nAccent,
-    onSecondary = Color.Black,
+    onSecondary = N8nSecondary,
     secondaryContainer = N8nAccent.copy(alpha = 0.2f),
-    onSecondaryContainer = N8nAccentMuted,
+    onSecondaryContainer = N8nAccent,
     
-    tertiary = StatusInfo,
+    tertiary = N8nPrimaryVariant,
     onTertiary = Color.White,
-    tertiaryContainer = StatusInfo.copy(alpha = 0.2f),
-    onTertiaryContainer = StatusInfoMuted,
+    
+    background = NeuroBackgroundDark,
+    onBackground = TextPrimaryDark,
+    
+    surface = NeuroSurfaceDark,
+    onSurface = TextPrimaryDark,
+    surfaceVariant = NeuroSurfaceDark,
+    onSurfaceVariant = TextSecondaryDark,
     
     error = StatusError,
     onError = Color.White,
     errorContainer = StatusError.copy(alpha = 0.2f),
-    onErrorContainer = StatusErrorMuted,
+    onErrorContainer = StatusError,
     
-    background = NeumorphBackgroundDark,
-    onBackground = TextPrimaryDark,
+    outline = TextSecondaryDark.copy(alpha = 0.3f),
+    outlineVariant = TextSecondaryDark.copy(alpha = 0.15f)
+)
+
+// Neumorphic Light Color Scheme
+private val LightColorScheme = lightColorScheme(
+    primary = N8nPrimary,
+    onPrimary = Color.White,
+    primaryContainer = N8nPrimary.copy(alpha = 0.15f),
+    onPrimaryContainer = N8nPrimary,
     
-    surface = NeumorphSurfaceDark,
-    onSurface = TextPrimaryDark,
-    surfaceVariant = NeumorphSurfaceDark,
-    onSurfaceVariant = TextSecondaryDark,
+    secondary = N8nSecondary,
+    onSecondary = Color.White,
+    secondaryContainer = N8nSecondary.copy(alpha = 0.1f),
+    onSecondaryContainer = N8nSecondary,
     
-    outline = DividerDark,
-    outlineVariant = DividerDark.copy(alpha = 0.5f),
+    tertiary = N8nAccent,
+    onTertiary = Color.White,
     
-    inverseSurface = NeumorphSurfaceLight,
-    inverseOnSurface = TextPrimaryLight,
-    inversePrimary = N8nPrimaryVariant
+    background = NeuroBackgroundLight,
+    onBackground = TextPrimaryLight,
+    
+    surface = NeuroSurfaceLight,
+    onSurface = TextPrimaryLight,
+    surfaceVariant = NeuroSurfaceLight,
+    onSurfaceVariant = TextSecondaryLight,
+    
+    error = StatusError,
+    onError = Color.White,
+    errorContainer = StatusError.copy(alpha = 0.15f),
+    onErrorContainer = StatusError,
+    
+    outline = TextSecondaryLight.copy(alpha = 0.3f),
+    outlineVariant = TextSecondaryLight.copy(alpha = 0.15f)
 )
 
 @Composable
 fun N8nMobileManagerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    // Dynamic color is disabled for neumorphic design consistency
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalView.current.context
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
+        // We disable dynamic colors for neumorphic design as it needs specific
+        // color relationships for the shadow effects to work properly
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
-    
-    val neumorphicColors = if (darkTheme) DarkNeumorphicColors else LightNeumorphicColors
     
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
+            // Use the neumorphic background color for status bar
             window.statusBarColor = colorScheme.background.toArgb()
+            // Navigation bar matches the background
             window.navigationBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = !darkTheme
-                isAppearanceLightNavigationBars = !darkTheme
-            }
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
 
-    androidx.compose.runtime.CompositionLocalProvider(
-        LocalNeumorphicColors provides neumorphicColors
-    ) {
-        MaterialTheme(
-            colorScheme = colorScheme,
-            typography = N8nTypography,
-            content = content
-        )
-    }
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography,
+        content = content
+    )
 }
-
-// ==================== Extension Colors ====================
-val ColorScheme.statusSuccess: Color
-    get() = StatusSuccess
-
-val ColorScheme.statusSuccessMuted: Color
-    get() = StatusSuccessMuted
-
-val ColorScheme.statusError: Color
-    get() = StatusError
-
-val ColorScheme.statusErrorMuted: Color
-    get() = StatusErrorMuted
-
-val ColorScheme.statusWarning: Color
-    get() = StatusWarning
-
-val ColorScheme.statusWarningMuted: Color
-    get() = StatusWarningMuted
-
-val ColorScheme.statusInfo: Color
-    get() = StatusInfo
-
-val ColorScheme.statusInfoMuted: Color
-    get() = StatusInfoMuted
-
-val ColorScheme.statusRunning: Color
-    get() = StatusRunning
-
-val ColorScheme.statusRunningMuted: Color
-    get() = StatusRunningMuted
-
-val ColorScheme.n8nAccent: Color
-    get() = N8nAccent
-
-val ColorScheme.n8nAccentMuted: Color
-    get() = N8nAccentMuted
-
-// ==================== Neumorphic Helpers ====================
-@Composable
-fun neumorphicColors(): NeumorphicColors = LocalNeumorphicColors.current
