@@ -164,7 +164,7 @@ fun N8nNavigation(
         NavHost(
             navController = navController,
             startDestination = Screen.Login.route,
-            modifier = Modifier.padding(paddingValues),
+            modifier = Modifier.padding(top = paddingValues.calculateTopPadding()),
             enterTransition = {
                 // Déterminer la direction en fonction de l'ordre des écrans
                 val fromIndex = bottomNavScreens.indexOfFirst { it.route == initialState.destination.route }
@@ -344,25 +344,21 @@ private fun NeumorphicBottomNavBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 20.dp),
-        contentAlignment = Alignment.BottomCenter
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
-        // Barre flottante avec ombre neumorphique
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp)
+                .height(64.dp)
                 .neumorphicRaised(
                     lightShadowColor = neumorphColors.lightShadow,
                     darkShadowColor = neumorphColors.darkShadow,
                     backgroundColor = neumorphColors.background,
-                    shadowOffset = NeumorphicDimensions.LargeShadowOffset.dp,
-                    shadowBlur = NeumorphicDimensions.LargeShadowBlur.dp,
-                    cornerRadius = NeumorphicDimensions.LargeCornerRadius.dp
+                    cornerRadius = 32.dp
                 )
-                .clip(RoundedCornerShape(NeumorphicDimensions.LargeCornerRadius.dp))
         ) {
-            BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val itemWidth = maxWidth / bottomNavScreens.size
                 
                 // Indicateur glissant avec dégradé
@@ -371,13 +367,13 @@ private fun NeumorphicBottomNavBar(
                         .offset(x = itemWidth * animatedIndex)
                         .width(itemWidth)
                         .fillMaxHeight()
-                        .padding(vertical = 10.dp, horizontal = 6.dp),
+                        .padding(vertical = 8.dp, horizontal = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(RoundedCornerShape(18.dp))
+                            .clip(RoundedCornerShape(24.dp))
                             .background(
                                 Brush.linearGradient(
                                     colors = listOf(

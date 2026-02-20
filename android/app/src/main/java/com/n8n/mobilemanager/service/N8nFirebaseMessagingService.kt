@@ -86,27 +86,25 @@ class N8nFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     private fun createNotificationChannel(channelId: String) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = when (channelId) {
-                CHANNEL_ERROR -> NotificationChannel(
-                    CHANNEL_ERROR,
-                    "Execution Errors",
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = "Notifications for workflow errors"
-                }
-                else -> NotificationChannel(
-                    CHANNEL_DEFAULT,
-                    "General Notifications",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                ).apply {
-                    description = "General notifications from n8n Manager"
-                }
+        val channel = when (channelId) {
+            CHANNEL_ERROR -> NotificationChannel(
+                CHANNEL_ERROR,
+                "Execution Errors",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications for workflow errors"
             }
-            
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
+            else -> NotificationChannel(
+                CHANNEL_DEFAULT,
+                "General Notifications",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "General notifications from n8n Manager"
+            }
         }
+        
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.createNotificationChannel(channel)
     }
 
     companion object {

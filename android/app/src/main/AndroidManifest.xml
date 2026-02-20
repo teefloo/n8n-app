@@ -41,6 +41,12 @@
             </intent-filter>
         </service>
 
+        <provider
+            android:name="com.google.firebase.provider.FirebaseInitProvider"
+            android:authorities="${applicationId}.firebaseinitprovider"
+            android:exported="false"
+            tools:node="remove" />
+
         <!-- WorkManager for background sync -->
         <provider
             android:name="androidx.startup.InitializationProvider"

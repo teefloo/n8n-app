@@ -27,7 +27,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.n8n.mobilemanager.ui.components.*
 import com.n8n.mobilemanager.ui.theme.*
-import java.text.SimpleDateFormat
+import com.n8n.mobilemanager.utils.DateUtils
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -172,7 +172,7 @@ fun CredentialsScreen(
                                 CredentialCard(
                                     name = credential.name,
                                     type = formatCredentialType(credential.type),
-                                    lastUpdated = formatDate(credential.updatedAt),
+                                    lastUpdated = "Updated on ${DateUtils.formatFullDate(credential.updatedAt)}",
                                     onClick = { onNavigateToCredential(credential.id) }
                                 )
                             }
@@ -323,17 +323,4 @@ private fun formatCredentialType(type: String): String {
         .replace("Oauth2", "OAuth 2.0")
         .replace(" My Sql", " MySQL")
         .replace(" Ai", " AI")
-}
-
-private fun formatDate(dateString: String): String {
-    return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        inputFormat.timeZone = TimeZone.getTimeZone("UTC")
-        val outputFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        outputFormat.timeZone = TimeZone.getDefault()
-        val date = inputFormat.parse(dateString)
-        date?.let { "Updated on ${outputFormat.format(it)}" } ?: dateString
-    } catch (e: Exception) {
-        dateString
-    }
 }

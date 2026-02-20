@@ -108,8 +108,8 @@ fun EmptyState(
  */
 @Composable
 fun LoadingState(
-    message: String = "Loading...",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    message: String = "Loading..."
 ) {
     val colors = neumorphicColors()
     
@@ -326,9 +326,9 @@ fun NeumorphicBadge(
  */
 @Composable
 fun PulseDot(
+    modifier: Modifier = Modifier,
     color: Color = StatusSuccess,
-    size: Int = 10,
-    modifier: Modifier = Modifier
+    size: Int = 10
 ) {
     val pulseAlpha by animateFloatAsState(
         targetValue = 1f,

@@ -32,35 +32,33 @@ class NotificationHelper @Inject constructor(
     }
 
     fun createNotificationChannels() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Log.d(TAG, "Creating notification channels...")
-            val errorChannel = NotificationChannel(
-                CHANNEL_ERRORS,
-                "Execution Errors",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Notifications for workflow errors"
-            }
-
-            val successChannel = NotificationChannel(
-                CHANNEL_SUCCESS,
-                "Execution Success",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Notifications for workflow successes"
-            }
-
-            val testChannel = NotificationChannel(
-                CHANNEL_TEST,
-                "Notification Tests",
-                NotificationManager.IMPORTANCE_HIGH // Augmenté pour le test
-            ).apply {
-                description = "Channel used to test notifications"
-            }
-
-            notificationManager.createNotificationChannels(listOf(errorChannel, successChannel, testChannel))
-            Log.d(TAG, "Notification channels created successfully")
+        Log.d(TAG, "Creating notification channels...")
+        val errorChannel = NotificationChannel(
+            CHANNEL_ERRORS,
+            "Execution Errors",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Notifications for workflow errors"
         }
+
+        val successChannel = NotificationChannel(
+            CHANNEL_SUCCESS,
+            "Execution Success",
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "Notifications for workflow successes"
+        }
+
+        val testChannel = NotificationChannel(
+            CHANNEL_TEST,
+            "Notification Tests",
+            NotificationManager.IMPORTANCE_HIGH // Augmenté pour le test
+        ).apply {
+            description = "Channel used to test notifications"
+        }
+
+        notificationManager.createNotificationChannels(listOf(errorChannel, successChannel, testChannel))
+        Log.d(TAG, "Notification channels created successfully")
     }
 
     fun showNotification(

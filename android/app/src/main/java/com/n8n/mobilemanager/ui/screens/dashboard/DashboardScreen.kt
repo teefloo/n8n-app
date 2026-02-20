@@ -33,6 +33,7 @@ import com.n8n.mobilemanager.data.model.ExecutionMode
 import com.n8n.mobilemanager.data.model.InstanceStats
 import com.n8n.mobilemanager.ui.components.*
 import com.n8n.mobilemanager.ui.theme.*
+import com.n8n.mobilemanager.utils.DateUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -403,13 +404,13 @@ fun ExecutionItem(
                     
                     // Time
                     Text(
-                        text = formatTime(execution.startedAt),
+                        text = DateUtils.formatTime(execution.startedAt),
                         style = MaterialTheme.typography.labelSmall,
                         color = colors.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                     
                     // Duration (if available)
-                    val duration = calculateDuration(execution.startedAt, execution.stoppedAt)
+                    val duration = DateUtils.calculateDuration(execution.startedAt, execution.stoppedAt)
                     if (duration.isNotEmpty()) {
                         // Separator
                         Box(
@@ -437,41 +438,5 @@ fun ExecutionItem(
             
             ExecutionStatusChip(status = execution.status)
         }
-    }
-}
-
-private fun calculateDuration(start: String, end: String?): String {
-    if (end == null) return ""
-    try {
-        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
-        // Try alternate format if first fails
-        val format2 = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-        
-        val startTime = try { format.parse(start)?.time } catch (e: Exception) { format2.parse(start)?.time } ?: return ""
-        val endTime = try { format.parse(end)?.time } catch (e: Exception) { format2.parse(end)?.time } ?: return ""
-        
-        val diff = endTime - startTime
-        return when {
-            diff < 1000 -> "${diff}ms"
-            diff < 60000 -> "${diff/1000}s"
-            else -> "${diff/60000}m ${diff%60000/1000}s"
-        }
-    } catch (e: Exception) {
-        return ""
-    }
-}
-
-private fun formatTime(dateString: String): String {
-    return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        inputFormat.timeZone = TimeZone.getTimeZone("UTC")
-        val outputFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        outputFormat.timeZone = TimeZone.getDefault()
-        val date = inputFormat.parse(dateString)
-        date?.let { outputFormat.format(it) } ?: ""
-    } catch (e: Exception) {
-        ""
     }
 }

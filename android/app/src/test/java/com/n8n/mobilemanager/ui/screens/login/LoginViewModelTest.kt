@@ -4,7 +4,6 @@ import com.n8n.mobilemanager.data.model.N8nInstance
 import com.n8n.mobilemanager.data.model.InstanceStatus
 import com.n8n.mobilemanager.data.repository.N8nRepository
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -33,7 +32,6 @@ class LoginViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         
-        // Default behavior for active instance check
         coEvery { repository.getActiveInstanceFlow() } returns flowOf(null)
         
         viewModel = LoginViewModel(repository)
@@ -70,24 +68,21 @@ class LoginViewModelTest {
     fun `testConnection fails with empty url`() {
         viewModel.updateInstanceApiKey("key")
         viewModel.testConnection()
-        assertEquals("URL requise", viewModel.uiState.value.error)
+        assertEquals("URL required", viewModel.uiState.value.error)
     }
 
     @Test
     fun `testConnection success updates state`() = runTest {
-        // Given
         viewModel.updateInstanceUrl("https://valid.com")
         viewModel.updateInstanceApiKey("valid_key")
         
         coEvery { repository.testConnection(any()) } returns Result.success(
-            InstanceStatus(true, 0, 0)
+            InstanceStatus(isOnline = true, activeWorkflows = 0, totalWorkflows = 0)
         )
 
-        // When
         viewModel.testConnection()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
         val state = viewModel.uiState.value
         assertNotNull(state.connectionTestResult)
         assertTrue(state.connectionTestResult!!.isSuccess)
@@ -96,17 +91,14 @@ class LoginViewModelTest {
 
     @Test
     fun `testConnection failure updates state with error`() = runTest {
-        // Given
         viewModel.updateInstanceUrl("https://invalid.com")
         viewModel.updateInstanceApiKey("key")
         
         coEvery { repository.testConnection(any()) } returns Result.failure(Exception("Network Error"))
 
-        // When
         viewModel.testConnection()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
         val state = viewModel.uiState.value
         assertNotNull(state.connectionTestResult)
         assertFalse(state.connectionTestResult!!.isSuccess)
@@ -116,7 +108,6 @@ class LoginViewModelTest {
 
     @Test
     fun `saveInstance success logs in user`() = runTest {
-        // Given
         viewModel.updateInstanceName("Name")
         viewModel.updateInstanceUrl("https://url.com")
         viewModel.updateInstanceApiKey("key")
@@ -125,11 +116,9 @@ class LoginViewModelTest {
             N8nInstance(1, "Name", "https://url.com", "key")
         )
 
-        // When
         viewModel.saveInstance()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
         assertTrue(viewModel.uiState.value.isLoggedIn)
         assertFalse(viewModel.uiState.value.isSaving)
     }

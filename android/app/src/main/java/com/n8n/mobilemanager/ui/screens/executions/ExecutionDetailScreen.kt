@@ -24,7 +24,7 @@ import com.n8n.mobilemanager.data.model.Execution
 import com.n8n.mobilemanager.data.model.ExecutionStatus
 import com.n8n.mobilemanager.ui.components.*
 import com.n8n.mobilemanager.ui.theme.*
-import java.text.SimpleDateFormat
+import com.n8n.mobilemanager.utils.DateUtils
 import java.util.*
 
 @Composable
@@ -244,14 +244,14 @@ private fun ExecutionContent(
                     TimingItem(
                         icon = Icons.Outlined.PlayArrow,
                         label = "Start",
-                        value = formatDateTime(execution.startedAt)
+                        value = DateUtils.formatFullDate(execution.startedAt)
                     )
                     
                     execution.stoppedAt?.let {
                         TimingItem(
                             icon = Icons.Outlined.Stop,
                             label = "End",
-                            value = formatDateTime(it)
+                            value = DateUtils.formatFullDate(it)
                         )
                     }
                     
@@ -259,7 +259,7 @@ private fun ExecutionContent(
                         TimingItem(
                             icon = Icons.Outlined.Timer,
                             label = "Duration",
-                            value = calculateDuration(execution.startedAt, execution.stoppedAt)
+                            value = DateUtils.calculateDuration(execution.startedAt, execution.stoppedAt)
                         )
                     }
                 }
@@ -356,60 +356,5 @@ private fun TimingItem(
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface
         )
-    }
-}
-
-private fun formatDateTime(dateString: String): String {
-    if (dateString.isBlank()) return "—"
-    
-    return try {
-        val outputFormat = SimpleDateFormat("dd/MM HH:mm:ss", Locale.getDefault())
-        outputFormat.timeZone = TimeZone.getDefault()
-        
-        // Essayer plusieurs formats de date
-        val formats = listOf(
-            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" to TimeZone.getTimeZone("UTC"),
-            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX" to null,
-            "yyyy-MM-dd'T'HH:mm:ss.SSS" to TimeZone.getTimeZone("UTC"),
-            "yyyy-MM-dd'T'HH:mm:ss'Z'" to TimeZone.getTimeZone("UTC"),
-            "yyyy-MM-dd'T'HH:mm:ss" to TimeZone.getTimeZone("UTC")
-        )
-        
-        for ((pattern, tz) in formats) {
-            try {
-                val inputFormat = SimpleDateFormat(pattern, Locale.getDefault())
-                if (tz != null) inputFormat.timeZone = tz
-                val date = inputFormat.parse(dateString)
-                if (date != null) {
-                    return outputFormat.format(date)
-                }
-            } catch (e: Exception) {
-                // Essayer le format suivant
-            }
-        }
-        
-        dateString
-    } catch (e: Exception) {
-        dateString
-    }
-}
-
-private fun calculateDuration(startedAt: String, stoppedAt: String): String {
-    return try {
-        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        val start = format.parse(startedAt)
-        val stop = format.parse(stoppedAt)
-        if (start != null && stop != null) {
-            val durationMs = stop.time - start.time
-             when {
-                durationMs < 0 -> "—" /* Should not happen */
-                durationMs < 1000 -> "${durationMs}ms"
-                durationMs < 60000 -> "${durationMs / 1000}s"
-                durationMs < 3600000 -> "${durationMs / 60000}m ${(durationMs % 60000) / 1000}s"
-                else -> "${durationMs / 3600000}h ${(durationMs % 3600000) / 60000}m"
-            }
-        } else "—"
-    } catch (e: Exception) {
-        "—"
     }
 }

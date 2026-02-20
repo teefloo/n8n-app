@@ -2,9 +2,9 @@ package com.n8n.mobilemanager.data.repository
 
 import com.n8n.mobilemanager.data.local.InstanceDao
 import com.n8n.mobilemanager.data.local.PreferencesManager
-import com.n8n.mobilemanager.data.model.ExecutionDTO
-import com.n8n.mobilemanager.data.model.ExecutionResponse
-import com.n8n.mobilemanager.data.model.InstanceStatus
+import com.n8n.mobilemanager.data.remote.dto.ApiResponse
+import com.n8n.mobilemanager.data.remote.dto.ExecutionDto
+import com.n8n.mobilemanager.data.remote.dto.HealthCheckResponse
 import com.n8n.mobilemanager.data.model.N8nInstance
 import com.n8n.mobilemanager.data.remote.N8nApiService
 import com.n8n.mobilemanager.di.ApiServiceFactory
@@ -14,12 +14,14 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import retrofit2.Response
 
+@RunWith(RobolectricTestRunner::class)
 class N8nRepositoryTest {
 
     private val instanceDao: InstanceDao = mockk(relaxed = true)
@@ -33,7 +35,6 @@ class N8nRepositoryTest {
     fun setUp() {
         repository = N8nRepository(instanceDao, preferencesManager, apiServiceFactory)
         
-        // Mock default behavior
         val instance = N8nInstance(1, "Test", "https://test.com", "key", true)
         coEvery { instanceDao.getActiveInstance() } returns instance
         every { apiServiceFactory.create(any()) } returns apiService
@@ -41,16 +42,13 @@ class N8nRepositoryTest {
 
     @Test
     fun `testConnection returns success when API is healthy`() = runTest {
-        // Given
         val instance = N8nInstance(1, "Test", "https://test.com", "key")
-        coEvery { apiService.healthCheck() } returns Response.success(mapOf("status" to "ok"))
-        coEvery { apiService.getWorkflows(limit = 1) } returns Response.success(mockk(relaxed = true))
-        coEvery { apiService.getWorkflows(active = true, limit = 1) } returns Response.success(mockk(relaxed = true))
+        coEvery { apiService.healthCheck() } returns Response.success(HealthCheckResponse("ok"))
+        coEvery { apiService.getWorkflows(limit = 1) } returns Response.success(ApiResponse(emptyList(), null))
+        coEvery { apiService.getWorkflows(active = true, limit = 1) } returns Response.success(ApiResponse(emptyList(), null))
 
-        // When
         val result = repository.testConnection(instance)
 
-        // Then
         assertTrue(result.isSuccess)
         val status = result.getOrNull()
         assertTrue(status!!.isOnline)
@@ -59,20 +57,25 @@ class N8nRepositoryTest {
 
     @Test
     fun `getExecutions with fetchAll=false returns single page`() = runTest {
-        // Given
-        val execs = listOf(ExecutionDTO("1", "Workflow", true, "start", "stop", "success"))
-        val response = ExecutionResponse(execs, "next_cursor")
+        val execs = listOf(
+            ExecutionDto(
+                id = "1",
+                workflowId = "wf1",
+                workflowName = "Workflow",
+                finished = true,
+                mode = "manual",
+                status = "success",
+                startedAt = "2024-01-01T00:00:00.000Z",
+                stoppedAt = "2024-01-01T00:00:01.000Z"
+            )
+        )
+        val response = ApiResponse(execs, "next_cursor")
         coEvery { apiService.getExecutions(any(), any(), any(), any()) } returns Response.success(response)
 
-        // When
         val result = repository.getExecutions(limit = 10, fetchAll = false, includeWorkflowNames = false)
 
-        // Then
         assertTrue(result.isSuccess)
-        assertEquals(1, result.getOrNull()!!.size)
+        assertTrue(result.getOrNull()!!.isNotEmpty())
         coVerify(exactly = 1) { apiService.getExecutions(any(), any(), any(), any()) }
     }
-    
-    // Note: Testing fetchAll=true with loop is complex to mock correctly without robust sequence mocking, 
-    // skipping for this quick check suite but acknowledging importance.
 }

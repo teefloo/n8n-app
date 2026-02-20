@@ -19,9 +19,7 @@ import com.n8n.mobilemanager.utils.NotificationHelper
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
-import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.TimeZone
+import com.n8n.mobilemanager.utils.DateUtils
 
 @HiltWorker
 class ExecutionCheckWorker @AssistedInject constructor(
@@ -55,7 +53,7 @@ class ExecutionCheckWorker @AssistedInject constructor(
                 onSuccess = { executions ->
                     // Find new errors since last check
                     val newErrors = executions.filter { execution ->
-                        val startedAt = parseDateToMillis(execution.startedAt)
+                        val startedAt = DateUtils.parseInstant(execution.startedAt)?.toEpochMilli()
                         startedAt != null && startedAt > lastCheckTime
                     }
 
@@ -93,22 +91,4 @@ class ExecutionCheckWorker @AssistedInject constructor(
         }
     }
 
-    private fun parseDateToMillis(dateString: String): Long? {
-        val dateFormats = listOf(
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("UTC") },
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()),
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("UTC") },
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-        )
-        
-        for (format in dateFormats) {
-            try {
-                return format.parse(dateString)?.time
-            } catch (e: Exception) {
-                // Continue
-            }
-        }
-        return null
-    }
 }
-

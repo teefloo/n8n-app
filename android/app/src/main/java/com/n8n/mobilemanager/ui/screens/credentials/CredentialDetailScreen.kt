@@ -38,7 +38,7 @@ import com.n8n.mobilemanager.ui.components.NeumorphicCard
 import com.n8n.mobilemanager.ui.components.NeumorphicIconButton
 import com.n8n.mobilemanager.ui.theme.NeumorphicDimensions
 import com.n8n.mobilemanager.ui.components.neumorphicColors
-import java.text.SimpleDateFormat
+import com.n8n.mobilemanager.utils.DateUtils
 import java.util.*
 
 @Composable
@@ -263,7 +263,7 @@ private fun CredentialDates(credential: Credential) {
         Box(modifier = Modifier.weight(1f)) {
             DetailSmallCard(
                 label = "Created on",
-                value = formatDate(credential.createdAt),
+                value = DateUtils.formatFullDate(credential.createdAt),
                 icon = Icons.Outlined.CalendarToday
             )
         }
@@ -272,7 +272,7 @@ private fun CredentialDates(credential: Credential) {
         Box(modifier = Modifier.weight(1f)) {
             DetailSmallCard(
                 label = "Updated on",
-                value = formatDate(credential.updatedAt),
+                value = DateUtils.formatFullDate(credential.updatedAt),
                 icon = Icons.Outlined.Update
             )
         }
@@ -354,7 +354,7 @@ private fun NodeAccessCard(nodeAccess: NodeAccess) {
                     )
                     if (nodeAccess.date != null) {
                         Text(
-                            text = formatDate(nodeAccess.date),
+                            text = DateUtils.formatFullDate(nodeAccess.date),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -376,17 +376,4 @@ private fun formatCredentialType(type: String): String {
         .replace(" My Sql", " MySQL")
         .replace(" Ai", " AI")
         .replace("n8n", "n8n") // Ensure case
-}
-
-private fun formatDate(dateString: String): String {
-    return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        inputFormat.timeZone = TimeZone.getTimeZone("UTC")
-        val outputFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        outputFormat.timeZone = TimeZone.getDefault()
-        val date = inputFormat.parse(dateString)
-        date?.let { outputFormat.format(it) } ?: dateString
-    } catch (e: Exception) {
-        dateString.substringBefore("T") // Fallback
-    }
 }

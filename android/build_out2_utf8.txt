@@ -1,0 +1,104 @@
+﻿Starting a Gradle Daemon, 5 stopped Daemons could not be reused, use --status for details
+Reusing configuration cache.
+> Task :app:preBuild UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:writeDebugAppMetadata
+> Task :app:generateDebugResValues FROM-CACHE
+> Task :app:javaPreCompileDebug FROM-CACHE
+> Task :app:generateDebugBuildConfig FROM-CACHE
+> Task :app:desugarDebugFileDependencies FROM-CACHE
+> Task :app:generateDebugResources FROM-CACHE
+> Task :app:extractDeepLinksDebug FROM-CACHE
+> Task :app:packageDebugResources FROM-CACHE
+> Task :app:writeDebugSigningConfigVersions
+> Task :app:processDebugNavigationResources FROM-CACHE
+> Task :app:compileDebugNavigationResources FROM-CACHE
+> Task :app:mapDebugSourceSetPaths
+> Task :app:processDebugMainManifest FROM-CACHE
+> Task :app:validateSigningDebug
+> Task :app:processDebugManifest FROM-CACHE
+> Task :app:parseDebugLocalResources FROM-CACHE
+> Task :app:processDebugManifestForPackage FROM-CACHE
+> Task :app:checkDebugDuplicateClasses
+> Task :app:checkDebugAarMetadata
+> Task :app:mergeDebugShaders
+> Task :app:mergeDebugJniLibFolders
+> Task :app:mergeLibDexDebug FROM-CACHE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets
+> Task :app:compressDebugAssets FROM-CACHE
+> Task :app:mergeDebugNativeLibs
+> Task :app:mergeDebugResources FROM-CACHE
+
+> Task :app:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so, libdatastore_shared_counter.so. Run with --info option to learn more.
+
+> Task :app:mergeExtDexDebug FROM-CACHE
+> Task :app:processDebugResources FROM-CACHE
+> Task :app:kspDebugKotlin FROM-CACHE
+
+> Task :app:compileDebugKotlin FAILED
+.\gradlew.bat : e: file:///C:
+/Users/estde/Documents/GitHub
+/n8n-app/android/app/src/main
+/java/com/n8n/mobilemanager/w
+orker/ExecutionCheckWorker.kt
+:56:51 Unresolved reference 
+'parseToInstant'.
+Au caractère Ligne:1 : 55
++ ...  app\build"; 
+.\gradlew.bat assembleDebug 
+> build_out.txt 2>&1; Get-Co 
+...
++                  ~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (e: file  
+  :///C:/U...arseToInstant   
+ '.:String) [], RemoteExc    
+eption
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+e: file:///C:/Users/estde/Doc
+uments/GitHub/n8n-app/android
+/app/src/main/java/com/n8n/mo
+bilemanager/worker/ExecutionC
+heckWorker.kt:57:56 
+Unresolved reference 
+'compareTo'.
+
+FAILURE: Build failed with 
+an exception.
+
+* What went wrong:
+Execution failed for task 
+':app:compileDebugKotlin'.
+> A failure occurred while 
+executing org.jetbrains.kotli
+n.compilerRunner.GradleCompil
+erRunnerWithWorkers$GradleKot
+linCompilerWorkAction
+   > Compilation error. See 
+log for more details
+
+* Try:
+> Run with --stacktrace 
+option to get the stack 
+trace.
+> Run with --info or --debug 
+option to get more log 
+output.
+> Run with --scan to get 
+full insights.
+> Get more help at 
+https://help.gradle.org.
+
+BUILD FAILED in 20s
+32 actionable tasks: 13 executed, 19 from cache
+Configuration cache entry reused.

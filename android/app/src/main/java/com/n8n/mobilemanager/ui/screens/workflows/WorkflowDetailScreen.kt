@@ -31,7 +31,7 @@ import com.n8n.mobilemanager.data.model.ExecutionStatus
 import com.n8n.mobilemanager.data.model.Node
 import com.n8n.mobilemanager.ui.components.*
 import com.n8n.mobilemanager.ui.theme.*
-import java.text.SimpleDateFormat
+import com.n8n.mobilemanager.utils.DateUtils
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -366,7 +366,7 @@ private fun DateInfo(
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
         )
         Text(
-            text = formatDate(dateString),
+            text = DateUtils.formatFullDate(dateString),
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
@@ -616,7 +616,7 @@ private fun ExecutionMiniCard(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = formatDate(execution.startedAt),
+                    text = DateUtils.formatFullDate(execution.startedAt),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
@@ -803,30 +803,6 @@ private fun ErrorSnackbar(message: String) {
 }
 
 // Helper functions
-private fun formatDate(dateString: String): String {
-    return try {
-        val inputFormats = listOf(
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()),
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-        )
-        val outputFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.FRANCE)
-        
-        for (format in inputFormats) {
-            try {
-                format.timeZone = TimeZone.getTimeZone("UTC")
-                val date = format.parse(dateString)
-                if (date != null) {
-                    outputFormat.timeZone = TimeZone.getDefault()
-                    return outputFormat.format(date)
-                }
-            } catch (_: Exception) { }
-        }
-        dateString
-    } catch (_: Exception) {
-        dateString
-    }
-}
-
 private fun getNodeTypeIcon(type: String): ImageVector {
     return when {
         type.contains("webhook", ignoreCase = true) -> Icons.Outlined.Webhook
