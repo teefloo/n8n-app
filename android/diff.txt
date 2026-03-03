@@ -1,0 +1,2 @@
+﻿android/.kotlin/sessions/kotlin-compiler-984391264120402693.salive
+android/app/src/main/java/com/n8n/mobilemanager/ui/screens/dashboard/DashboardScreen.kt
