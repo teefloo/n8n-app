@@ -1,3 +1,13 @@
+<p align="center">
+  <h1 align="center">n8n Mobile Manager</h1>
+</p>
+
+<p align="center">
+  <strong>Emportez vos automatisations partout. Client mobile natif pour n8n permettant de surveiller vos workflows, consulter les exécutions et gérer vos instances n8n directement depuis votre smartphone.</strong>
+</p>
+
+---
+
 # n8n Mobile Manager
 
 <p align="center">

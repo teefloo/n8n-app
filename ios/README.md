@@ -1,3 +1,13 @@
+<p align="center">
+  <h1 align="center">n8n Mobile Manager (iOS)</h1>
+</p>
+
+<p align="center">
+  <strong>Gérez vos automatisations n8n depuis votre iPhone. Une application SwiftUI élégante et sécurisée pour surveiller vos instances, contrôler vos workflows et consulter vos exécutions en déplacement.</strong>
+</p>
+
+---
+
 # n8n Mobile Manager
 
 Une application iOS native en SwiftUI pour gérer et superviser vos instances n8n depuis votre iPhone ou iPad.
