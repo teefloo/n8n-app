@@ -30,6 +30,9 @@ interface InstanceDao {
     
     @Delete
     suspend fun deleteInstance(instance: N8nInstance)
+
+    @Query("DELETE FROM instances WHERE id = :id")
+    suspend fun deleteInstanceById(id: Long)
     
     @Query("UPDATE instances SET isActive = 0")
     suspend fun deactivateAllInstances()

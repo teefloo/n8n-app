@@ -53,6 +53,7 @@ class N8nRepositoryTest {
         val status = result.getOrNull()
         assertTrue(status!!.isOnline)
         coVerify { instanceDao.updateLastConnected(instance.id, any()) }
+        coVerify(exactly = 0) { apiService.getWorkflows(any(), any(), any(), any()) }
     }
 
     @Test

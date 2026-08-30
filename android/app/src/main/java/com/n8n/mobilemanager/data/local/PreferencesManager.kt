@@ -7,7 +7,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,6 +27,12 @@ class PreferencesManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val dataStore = context.dataStore
+    private val credentialsMigrationMutex = Mutex()
+
+    private data class CredentialsAuth(
+        val email: String?,
+        val password: String?
+    )
 
     // ==================== Keys ====================
     
@@ -50,7 +61,7 @@ class PreferencesManager @Inject constructor(
         // Onboarding
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         
-        // Credentials Auth
+        // Credentials Auth (encrypted at rest with Android Keystore)
         val CREDENTIALS_EMAIL = stringPreferencesKey("credentials_email")
         val CREDENTIALS_PASSWORD = stringPreferencesKey("credentials_password")
     }
@@ -184,18 +195,82 @@ class PreferencesManager @Inject constructor(
 
     // ==================== Credentials Auth ====================
 
-    val credentialsEmail: Flow<String?> = dataStore.data
-        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
-        .map { it[PreferencesKeys.CREDENTIALS_EMAIL] }
+    private val credentialsAuth: Flow<CredentialsAuth?> = flow {
+        migrateCredentialsIfNeeded()
+        emitAll(
+            dataStore.data
+                .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+                .map { preferences ->
+                    CredentialsAuth(
+                        email = preferences[PreferencesKeys.CREDENTIALS_EMAIL]?.let(CredentialCipher::decrypt),
+                        password = preferences[PreferencesKeys.CREDENTIALS_PASSWORD]?.let(CredentialCipher::decrypt)
+                    ).takeUnless { it.email == null && it.password == null }
+                }
+        )
+    }
 
-    val credentialsPassword: Flow<String?> = dataStore.data
-        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
-        .map { it[PreferencesKeys.CREDENTIALS_PASSWORD] }
+    val credentialsEmail: Flow<String?> = credentialsAuth.map { it?.email }
+
+    val credentialsPassword: Flow<String?> = credentialsAuth.map { it?.password }
 
     suspend fun setCredentialsAuth(email: String, password: String) {
-        dataStore.edit { 
-            it[PreferencesKeys.CREDENTIALS_EMAIL] = email
-            it[PreferencesKeys.CREDENTIALS_PASSWORD] = password
+        val encryptedEmail: String
+        val encryptedPassword: String
+        try {
+            encryptedEmail = CredentialCipher.encrypt(email)
+            encryptedPassword = CredentialCipher.encrypt(password)
+        } catch (_: Exception) {
+            // Never fall back to plaintext if Android Keystore is unavailable.
+            clearCredentialsAuth()
+            return
+        }
+
+        dataStore.edit {
+            it[PreferencesKeys.CREDENTIALS_EMAIL] = encryptedEmail
+            it[PreferencesKeys.CREDENTIALS_PASSWORD] = encryptedPassword
+        }
+    }
+
+    private suspend fun migrateCredentialsIfNeeded() {
+        credentialsMigrationMutex.withLock {
+            val current = dataStore.data.first()
+            val email = current[PreferencesKeys.CREDENTIALS_EMAIL]
+            val password = current[PreferencesKeys.CREDENTIALS_PASSWORD]
+
+            if (email == null && password == null) return@withLock
+
+            val alreadyEncrypted = listOf(email, password)
+                .filterNotNull()
+                .all(CredentialCipher::isEncrypted)
+            if (alreadyEncrypted) return@withLock
+
+            try {
+                val encryptedEmail = email?.let {
+                    if (CredentialCipher.isEncrypted(it)) it else CredentialCipher.encrypt(it)
+                }
+                val encryptedPassword = password?.let {
+                    if (CredentialCipher.isEncrypted(it)) it else CredentialCipher.encrypt(it)
+                }
+
+                dataStore.edit {
+                    if (encryptedEmail != null) {
+                        it[PreferencesKeys.CREDENTIALS_EMAIL] = encryptedEmail
+                    } else {
+                        it.remove(PreferencesKeys.CREDENTIALS_EMAIL)
+                    }
+                    if (encryptedPassword != null) {
+                        it[PreferencesKeys.CREDENTIALS_PASSWORD] = encryptedPassword
+                    } else {
+                        it.remove(PreferencesKeys.CREDENTIALS_PASSWORD)
+                    }
+                }
+            } catch (_: Exception) {
+                // Discard legacy plaintext rather than retaining an unprotected secret.
+                dataStore.edit {
+                    it.remove(PreferencesKeys.CREDENTIALS_EMAIL)
+                    it.remove(PreferencesKeys.CREDENTIALS_PASSWORD)
+                }
+            }
         }
     }
 

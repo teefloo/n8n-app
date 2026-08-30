@@ -1,25 +1,71 @@
 package com.n8n.mobilemanager.ui.screens.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.automirrored.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.NetworkCheck
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -28,129 +74,88 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.n8n.mobilemanager.data.local.PreferencesManager
 import com.n8n.mobilemanager.data.model.N8nInstance
-import com.n8n.mobilemanager.ui.components.*
-import com.n8n.mobilemanager.ui.theme.*
+import com.n8n.mobilemanager.ui.components.N8nErrorBanner
+import com.n8n.mobilemanager.ui.components.N8nSectionHeader
+import com.n8n.mobilemanager.ui.components.N8nTopAppBar
+import com.n8n.mobilemanager.ui.components.NeumorphicCard
+import com.n8n.mobilemanager.ui.components.NeumorphicTextField
+import com.n8n.mobilemanager.ui.theme.StatusError
+import com.n8n.mobilemanager.ui.theme.StatusSuccess
 
-@OptIn(ExperimentalMaterial3Api::class)
+@androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    onNoActiveInstance: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val neumorphColors = neumorphicColors()
-    
-    var showThemeDialog by remember { mutableStateOf(false) }
-    var instanceToDelete by remember { mutableStateOf<N8nInstance?>(null) }
-    
+    var showThemeDialog by rememberSaveable { mutableStateOf(false) }
+    var instanceToDelete by rememberSaveable { mutableStateOf<Long?>(null) }
+    val selectedInstance = uiState.instances.firstOrNull { it.id == instanceToDelete }
+
+    LaunchedEffect(uiState.hasLoadedInstances, uiState.instances.isEmpty(), uiState.isAddingInstance) {
+        if (uiState.hasLoadedInstances && uiState.instances.isEmpty() && !uiState.isAddingInstance) {
+            onNoActiveInstance()
+        }
+    }
+
     Scaffold(
-        topBar = {
-            NeumorphicSettingsTopBar(onBackClick = onNavigateBack)
-        },
+        topBar = { N8nTopAppBar(title = "Settings", onBack = onNavigateBack) },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(paddingValues),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Instances Section
-            item {
-                NeumorphicSettingsSectionHeader(
-                    title = "n8n Instances",
-                    icon = Icons.Outlined.Cloud
-                )
-            }
-            
-            items(
-                items = uiState.instances,
-                key = { it.id }
-            ) { instance ->
-                NeumorphicInstanceCard(
+            item { SettingsSectionHeader("n8n instances", Icons.Filled.Cloud) }
+            items(uiState.instances, key = { it.id }) { instance ->
+                InstanceCard(
                     instance = instance,
                     isActive = instance.id == uiState.activeInstanceId,
                     onSelect = { viewModel.setActiveInstance(instance.id) },
                     onEdit = { viewModel.startEditingInstance(instance) },
-                    onDelete = { instanceToDelete = instance }
+                    onDelete = { instanceToDelete = instance.id }
                 )
             }
-            
             item {
                 NeumorphicCard(
                     modifier = Modifier.fillMaxWidth(),
-                    cornerRadius = 18.dp,
-                    onClick = { viewModel.startAddingInstance() }
+                    onClick = viewModel::startAddingInstance,
+                    onClickLabel = "Add n8n instance"
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            tint = N8nPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Add instance",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = N8nPrimary,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Add instance", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
-            
-            // Appearance Section
+
+            item { SettingsSectionHeader("Appearance", Icons.Filled.Palette) }
             item {
-                Spacer(modifier = Modifier.height(8.dp))
-                NeumorphicSettingsSectionHeader(
-                    title = "Appearance",
-                    icon = Icons.Outlined.Palette
-                )
-            }
-            
-            item {
-                NeumorphicCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    cornerRadius = 20.dp
-                ) {
-                    NeumorphicSettingsRow(
-                        icon = Icons.Outlined.DarkMode,
+                SettingsCard {
+                    SettingsValueRow(
+                        icon = Icons.Filled.Palette,
                         title = "Theme",
-                        subtitle = when (uiState.themeMode) {
-                            PreferencesManager.ThemeMode.LIGHT -> "Light"
-                            PreferencesManager.ThemeMode.DARK -> "Dark"
-                            PreferencesManager.ThemeMode.SYSTEM -> "System"
-                        },
+                        subtitle = uiState.themeMode.displayName(),
                         onClick = { showThemeDialog = true }
                     )
                 }
             }
-            
-            // Security Section
+
+            item { SettingsSectionHeader("Security", Icons.Filled.Security) }
             item {
-                Spacer(modifier = Modifier.height(8.dp))
-                NeumorphicSettingsSectionHeader(
-                    title = "Security",
-                    icon = Icons.Outlined.Security
-                )
-            }
-            
-            item {
-                NeumorphicCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    cornerRadius = 20.dp
-                ) {
-                    NeumorphicSettingsToggleRow(
-                        icon = Icons.Outlined.Fingerprint,
+                SettingsCard {
+                    SettingsToggleRow(
+                        icon = Icons.Filled.Fingerprint,
                         title = "Biometric authentication",
                         subtitle = "Protect access to the app",
                         checked = uiState.biometricEnabled,
@@ -158,254 +163,87 @@ fun SettingsScreen(
                     )
                 }
             }
-            
-            // Notifications Section
+
+            item { SettingsSectionHeader("Notifications", Icons.Filled.Notifications) }
             item {
-                Spacer(modifier = Modifier.height(8.dp))
-                NeumorphicSettingsSectionHeader(
-                    title = "Notifications",
-                    icon = Icons.Outlined.Notifications
-                )
-            }
-            
-            item {
-                NeumorphicCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    cornerRadius = 20.dp
-                ) {
+                SettingsCard {
                     Column {
-                        NeumorphicSettingsToggleRow(
+                        SettingsToggleRow(
                             icon = Icons.Outlined.ErrorOutline,
                             title = "Error alerts",
-                            subtitle = "Receive a notification in case of failure",
+                            subtitle = "Notify me when a workflow fails",
                             checked = uiState.notifyErrors,
                             onCheckedChange = viewModel::setNotifyErrors
                         )
-                        
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp)
-                                .height(1.dp)
-                                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
-                        )
-                        
-                        NeumorphicSettingsToggleRow(
-                            icon = Icons.Outlined.CheckCircleOutline,
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsToggleRow(
+                            icon = Icons.Filled.CheckCircle,
                             title = "Success notifications",
-                            subtitle = "Receive a notification in case of success",
+                            subtitle = "Notify me when a workflow succeeds",
                             checked = uiState.notifySuccess,
                             onCheckedChange = viewModel::setNotifySuccess
                         )
-
-                        Box(
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        ListItem(
+                            headlineContent = { Text("Test notification") },
+                            supportingContent = { Text("Send a sample notification to this device") },
+                            leadingContent = { Icon(Icons.Filled.Notifications, contentDescription = null) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 20.dp)
-                                .height(1.dp)
-                                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                                .clickable(onClick = viewModel::testNotification)
                         )
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { viewModel.testNotification() }
-                                .padding(18.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(N8nPrimary.copy(alpha = 0.1f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.BugReport,
-                                    contentDescription = null,
-                                    tint = N8nPrimary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Text(
-                                text = "Test notification",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = N8nPrimary,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
                     }
                 }
             }
-            
-            // About Section
+
+            item { SettingsSectionHeader("About", Icons.Filled.Info) }
             item {
-                Spacer(modifier = Modifier.height(8.dp))
-                NeumorphicSettingsSectionHeader(
-                    title = "About",
-                    icon = Icons.Outlined.Info
-                )
-            }
-            
-            item {
-                NeumorphicCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    cornerRadius = 20.dp
-                ) {
-                    NeumorphicSettingsRow(
-                        icon = Icons.Outlined.Info,
-                        title = "Version",
-                        subtitle = "1.0.0"
-                    )
+                SettingsCard {
+                    SettingsValueRow(icon = Icons.Filled.Info, title = "Version", subtitle = "1.0.0")
                 }
             }
-            
-            item {
-                Spacer(modifier = Modifier.height(60.dp))
+
+            uiState.error?.let { message ->
+                item { N8nErrorBanner(message = message, actionLabel = "Dismiss", onAction = viewModel::clearError) }
             }
         }
     }
-    
-    // Theme selection dialog with neumorphic style
+
     if (showThemeDialog) {
-        AlertDialog(
-            onDismissRequest = { showThemeDialog = false },
-            containerColor = MaterialTheme.colorScheme.background,
-            shape = RoundedCornerShape(24.dp),
-            title = { 
-                Text(
-                    text = "Choose theme",
-                    fontWeight = FontWeight.Bold
-                ) 
+        ThemeDialog(
+            selected = uiState.themeMode,
+            onSelected = {
+                viewModel.setThemeMode(it)
+                showThemeDialog = false
             },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PreferencesManager.ThemeMode.entries.forEach { mode ->
-                        NeumorphicCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            cornerRadius = 14.dp,
-                            isPressed = uiState.themeMode == mode,
-                            onClick = {
-                                viewModel.setThemeMode(mode)
-                                showThemeDialog = false
-                            }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .then(
-                                        if (uiState.themeMode == mode) {
-                                            Modifier.background(
-                                                Brush.horizontalGradient(
-                                                    colors = listOf(
-                                                        N8nPrimary.copy(alpha = 0.08f),
-                                                        N8nPrimary.copy(alpha = 0.12f)
-                                                    )
-                                                )
-                                            )
-                                        } else Modifier
-                                    )
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = when (mode) {
-                                            PreferencesManager.ThemeMode.LIGHT -> Icons.Outlined.LightMode
-                                            PreferencesManager.ThemeMode.DARK -> Icons.Outlined.DarkMode
-                                            PreferencesManager.ThemeMode.SYSTEM -> Icons.Outlined.SettingsBrightness
-                                        },
-                                        contentDescription = null,
-                                        tint = if (uiState.themeMode == mode) N8nPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = when (mode) {
-                                            PreferencesManager.ThemeMode.LIGHT -> "Light"
-                                            PreferencesManager.ThemeMode.DARK -> "Dark"
-                                            PreferencesManager.ThemeMode.SYSTEM -> "System"
-                                        },
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = if (uiState.themeMode == mode) N8nPrimary else MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                                
-                                if (uiState.themeMode == mode) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(N8nPrimary),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            tint = androidx.compose.ui.graphics.Color.White,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showThemeDialog = false }) {
-                    Text("Cancel", color = N8nPrimary)
-                }
-            }
+            onDismiss = { showThemeDialog = false }
         )
     }
-    
-    // Delete instance confirmation
-    instanceToDelete?.let { instance ->
+
+    selectedInstance?.let { instance ->
         AlertDialog(
             onDismissRequest = { instanceToDelete = null },
-            containerColor = MaterialTheme.colorScheme.background,
-            shape = RoundedCornerShape(24.dp),
-            title = { 
-                Text(
-                    text = "Delete instance?",
-                    fontWeight = FontWeight.Bold
-                ) 
-            },
-            text = { 
-                Text("Are you sure you want to delete the instance \"${instance.name}\"?")
-            },
+            title = { Text("Delete instance?") },
+            text = { Text("Remove \"${instance.name}\" from this device?") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         viewModel.deleteInstance(instance)
                         instanceToDelete = null
                     },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = StatusError
-                    )
-                ) {
-                    Text("Delete")
-                }
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Delete") }
             },
-            dismissButton = {
-                TextButton(onClick = { instanceToDelete = null }) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            dismissButton = { TextButton(onClick = { instanceToDelete = null }) { Text("Cancel") } }
         )
     }
-    
-    // Add/Edit instance bottom sheet
+
     if (uiState.isAddingInstance) {
         ModalBottomSheet(
-            onDismissRequest = { viewModel.cancelInstanceForm() },
-            containerColor = MaterialTheme.colorScheme.background
+            onDismissRequest = viewModel::cancelInstanceForm,
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
-            NeumorphicInstanceFormContent(
+            InstanceForm(
                 isEditing = uiState.editingInstance != null,
                 name = uiState.instanceName,
                 url = uiState.instanceUrl,
@@ -426,290 +264,132 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun NeumorphicSettingsTopBar(onBackClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        NeumorphicIconButton(
-            icon = Icons.AutoMirrored.Filled.ArrowBack,
-            onClick = onBackClick,
-            size = 44.dp,
-            iconSize = 22.dp,
-            tint = MaterialTheme.colorScheme.onSurface
-        )
-        
-        Text(
-            text = "Settings",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+private fun SettingsSectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
-private fun NeumorphicSettingsSectionHeader(
-    title: String,
-    icon: ImageVector
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(N8nPrimary.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = N8nPrimary,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            color = N8nPrimary,
-            fontWeight = FontWeight.SemiBold
-        )
-    }
+private fun SettingsCard(content: @Composable () -> Unit) {
+    NeumorphicCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 14.dp, content = { content() })
 }
 
 @Composable
-private fun NeumorphicSettingsRow(
-    icon: ImageVector,
+private fun SettingsValueRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String? = null,
     onClick: (() -> Unit)? = null
 ) {
-    Row(
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = subtitle?.let { { Text(it) } },
+        leadingContent = { Icon(icon, contentDescription = null) },
+        trailingContent = if (onClick != null) {
+            { Icon(Icons.Filled.ChevronRight, contentDescription = "Open") }
+        } else null,
         modifier = Modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(18.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        
-        Spacer(modifier = Modifier.width(14.dp))
-        
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium
-            )
-            subtitle?.let {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
-        }
-        
-        if (onClick != null) {
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
-        }
-    }
+    )
 }
 
 @Composable
-private fun NeumorphicSettingsToggleRow(
-    icon: ImageVector,
+private fun SettingsToggleRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
-    subtitle: String? = null,
+    subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(18.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        
-        Spacer(modifier = Modifier.width(14.dp))
-        
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium
-            )
-            subtitle?.let {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
-        }
-        
-        NeumorphicToggle(
-            checked = checked,
-            onCheckedChange = onCheckedChange
-        )
-    }
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(subtitle) },
+        leadingContent = { Icon(icon, contentDescription = null) },
+        trailingContent = { Switch(checked = checked, onCheckedChange = onCheckedChange) },
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 @Composable
-private fun NeumorphicInstanceCard(
+private fun InstanceCard(
     instance: N8nInstance,
     isActive: Boolean,
     onSelect: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val neumorphColors = neumorphicColors()
-    
     NeumorphicCard(
         modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 20.dp,
-        onClick = onSelect
+        onClick = onSelect,
+        onClickLabel = "Select ${instance.name}"
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(
-                    if (isActive) {
-                        Modifier.background(
-                            Brush.horizontalGradient(
-                                colors = listOf(
-                                    N8nPrimary.copy(alpha = 0.06f),
-                                    N8nPrimary.copy(alpha = 0.1f)
-                                )
-                            )
-                        )
-                    } else Modifier
-                )
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .neumorphicRaised(
-                        lightShadowColor = neumorphColors.lightShadow,
-                        darkShadowColor = neumorphColors.darkShadow,
-                        backgroundColor = if (isActive) N8nPrimary.copy(alpha = 0.2f) else neumorphColors.background,
-                        shadowOffset = 3.dp,
-                        shadowBlur = 6.dp,
-                        cornerRadius = 14.dp
-                    )
-                    .clip(RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center
+            Surface(
+                color = if (isActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Cloud,
+                    Icons.Filled.Cloud,
                     contentDescription = null,
-                    tint = if (isActive) N8nPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.padding(12.dp).size(24.dp),
+                    tint = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            
-            Spacer(modifier = Modifier.width(14.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = instance.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(instance.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     if (isActive) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(N8nPrimary)
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = "Active",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = androidx.compose.ui.graphics.Color.White,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(6.dp)) {
+                            Text("Active", modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = instance.baseUrl,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
+                Text(instance.baseUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                NeumorphicIconButton(
-                    icon = Icons.Outlined.Edit,
-                    onClick = onEdit,
-                    size = 38.dp,
-                    iconSize = 18.dp,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                NeumorphicIconButton(
-                    icon = Icons.Outlined.Delete,
-                    onClick = onDelete,
-                    size = 38.dp,
-                    iconSize = 18.dp,
-                    tint = StatusError
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit ${instance.name}") }
+                IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = "Delete ${instance.name}", tint = MaterialTheme.colorScheme.error) }
             }
         }
     }
 }
 
 @Composable
-private fun NeumorphicInstanceFormContent(
+private fun ThemeDialog(
+    selected: PreferencesManager.ThemeMode,
+    onSelected: (PreferencesManager.ThemeMode) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Choose theme") },
+        text = {
+            Column {
+                PreferencesManager.ThemeMode.entries.forEach { mode ->
+                    ListItem(
+                        headlineContent = { Text(mode.displayName()) },
+                        leadingContent = { RadioButton(selected = selected == mode, onClick = null) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelected(mode) }
+                            .semantics { role = Role.RadioButton }
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } }
+    )
+}
+
+@Composable
+private fun InstanceForm(
     isEditing: Boolean,
     name: String,
     url: String,
@@ -725,144 +405,90 @@ private fun NeumorphicInstanceFormContent(
     onSave: () -> Unit,
     onCancel: () -> Unit
 ) {
-    var showApiKey by remember { mutableStateOf(false) }
-    val neumorphColors = neumorphicColors()
-    
+    var showApiKey by rememberSaveable(isEditing) { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text(
-            text = if (isEditing) "Edit instance" else "New instance",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        
-        // Name field with neumorphic style
+        Text(if (isEditing) "Edit instance" else "Add instance", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+        Text("Keep the API key on this device only. It is encrypted before local storage.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
         NeumorphicTextField(
             value = name,
             onValueChange = onNameChange,
-            placeholder = "My n8n instance",
-                            leadingIcon = Icons.AutoMirrored.Outlined.Label,            modifier = Modifier.fillMaxWidth()
+            placeholder = "Instance name",
+            leadingIcon = Icons.AutoMirrored.Outlined.Label,
+            modifier = Modifier.fillMaxWidth()
         )
-        
-        // URL field
         NeumorphicTextField(
             value = url,
             onValueChange = onUrlChange,
             placeholder = "https://n8n.example.com",
             leadingIcon = Icons.Outlined.Link,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Uri),
             modifier = Modifier.fillMaxWidth()
         )
-        
-        // API Key field
         NeumorphicTextField(
             value = apiKey,
             onValueChange = onApiKeyChange,
-            placeholder = "n8n_api_...",
+            placeholder = "API key",
             leadingIcon = Icons.Outlined.Key,
             trailingIcon = {
                 IconButton(onClick = { showApiKey = !showApiKey }) {
                     Icon(
-                        imageVector = if (showApiKey) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                        contentDescription = if (showApiKey) "Hide" else "Show",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        imageVector = if (showApiKey) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = if (showApiKey) "Hide API key" else "Show API key"
                     )
                 }
             },
+            visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
-        
-        // Connection test result
+
         testResult?.let { result ->
-            NeumorphicCard(
-                modifier = Modifier.fillMaxWidth(),
-                cornerRadius = 14.dp
+            val isSuccess = result is ConnectionTestResult.Success
+            Surface(
+                color = if (isSuccess) StatusSuccess.copy(alpha = 0.12f) else MaterialTheme.colorScheme.errorContainer,
+                contentColor = if (isSuccess) StatusSuccess else MaterialTheme.colorScheme.onErrorContainer,
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            when (result) {
-                                is ConnectionTestResult.Success -> StatusSuccess.copy(alpha = 0.1f)
-                                is ConnectionTestResult.Error -> StatusError.copy(alpha = 0.1f)
-                            }
-                        )
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Icon(
-                        imageVector = when (result) {
-                            is ConnectionTestResult.Success -> Icons.Filled.CheckCircle
-                            is ConnectionTestResult.Error -> Icons.Filled.Error
-                        },
-                        contentDescription = null,
-                        tint = when (result) {
-                            is ConnectionTestResult.Success -> StatusSuccess
-                            is ConnectionTestResult.Error -> StatusError
-                        }
-                    )
-                    Text(
-                        text = when (result) {
-                            is ConnectionTestResult.Success -> "Connection successful!"
-                            is ConnectionTestResult.Error -> result.message
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = when (result) {
-                            is ConnectionTestResult.Success -> StatusSuccess
-                            is ConnectionTestResult.Error -> StatusError
-                        }
-                    )
+                Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(if (isSuccess) Icons.Filled.CheckCircle else Icons.Filled.Error, contentDescription = null)
+                    Text(if (isSuccess) "Connection successful" else (result as ConnectionTestResult.Error).message, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
-        
-        // Error message
-        error?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.bodySmall,
-                color = StatusError
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        // Test connection button
-        NeumorphicButton(
-            text = if (isTesting) "Testing..." else "Test connection",
+
+        error?.let { N8nErrorBanner(message = it) }
+
+        Button(
             onClick = onTestConnection,
-            icon = Icons.Outlined.NetworkCheck,
-            isPrimary = false,
-            enabled = !isTesting && url.isNotBlank() && apiKey.isNotBlank(),
+            enabled = !isTesting && !isSaving && url.isNotBlank() && apiKey.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
-        )
-        
-        // Action buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            NeumorphicButton(
-                text = "Cancel",
-                onClick = onCancel,
-                isPrimary = false,
-                modifier = Modifier.weight(1f)
-            )
-            
-            NeumorphicButton(
-                text = if (isSaving) "Saving..." else "Save",
+            Icon(Icons.Outlined.NetworkCheck, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(if (isTesting) "Testing…" else "Test connection")
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = onCancel, enabled = !isSaving, modifier = Modifier.weight(1f)) { Text("Cancel") }
+            Button(
                 onClick = onSave,
                 enabled = !isSaving && name.isNotBlank() && url.isNotBlank() && apiKey.isNotBlank(),
-                isPrimary = true,
                 modifier = Modifier.weight(1f)
-            )
+            ) { Text(if (isSaving) "Saving…" else "Save") }
         }
-        
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(Modifier.size(12.dp))
     }
+}
+
+private fun PreferencesManager.ThemeMode.displayName(): String = when (this) {
+    PreferencesManager.ThemeMode.LIGHT -> "Light"
+    PreferencesManager.ThemeMode.DARK -> "Dark"
+    PreferencesManager.ThemeMode.SYSTEM -> "System default"
 }

@@ -100,6 +100,7 @@ node_modules/
 
 # Kotlin
 *.kotlin_module
+.kotlin/
 
 # Compose Compiler Reports
 compose_compiler/

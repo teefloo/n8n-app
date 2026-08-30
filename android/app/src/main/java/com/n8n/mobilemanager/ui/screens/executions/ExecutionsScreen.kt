@@ -1,33 +1,65 @@
 package com.n8n.mobilemanager.ui.screens.executions
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.automirrored.outlined.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.n8n.mobilemanager.data.model.Execution
 import com.n8n.mobilemanager.data.model.ExecutionStatus
-import com.n8n.mobilemanager.ui.components.*
-import com.n8n.mobilemanager.ui.theme.*
+import com.n8n.mobilemanager.ui.components.EmptyState
+import com.n8n.mobilemanager.ui.components.ExecutionStatusChip
+import com.n8n.mobilemanager.ui.components.LoadingState
+import com.n8n.mobilemanager.ui.components.N8nErrorBanner
+import com.n8n.mobilemanager.ui.components.N8nTopAppBar
+import com.n8n.mobilemanager.ui.components.NeumorphicCard
+import com.n8n.mobilemanager.ui.components.NeumorphicIconButton
+import com.n8n.mobilemanager.ui.components.getStatusLabel
+import com.n8n.mobilemanager.ui.theme.N8nPrimary
+import com.n8n.mobilemanager.ui.theme.StatusError
 import com.n8n.mobilemanager.utils.DateUtils
-import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun ExecutionsScreen(
     viewModel: ExecutionsViewModel = hiltViewModel(),
@@ -35,160 +67,162 @@ fun ExecutionsScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val neumorphColors = neumorphicColors()
-    
     var showStatusFilterSheet by remember { mutableStateOf(false) }
     var showWorkflowFilterSheet by remember { mutableStateOf(false) }
-    
+
     Scaffold(
-        topBar = {
-            NeumorphicExecutionTopBar(
-                onBackClick = onNavigateBack
-            )
-        },
+        topBar = { N8nTopAppBar(title = "Executions", onBack = onNavigateBack) },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Filter chips row with neumorphic style
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                NeumorphicFilterButton(
-                    label = uiState.selectedStatus?.let { getStatusLabel(it) } ?: "Status",
-                    isActive = uiState.selectedStatus != null,
+                FilterChip(
+                    selected = uiState.selectedStatus != null,
                     onClick = { showStatusFilterSheet = true },
-                    onClear = if (uiState.selectedStatus != null) {
-                        { viewModel.setStatusFilter(null) }
-                    } else null,
+                    label = { Text(uiState.selectedStatus?.let(::getStatusLabel) ?: "Status") },
+                    leadingIcon = { Icon(Icons.Filled.FilterList, contentDescription = null) },
                     modifier = Modifier.weight(1f)
                 )
-                
-                NeumorphicFilterButton(
-                    label = uiState.workflows
-                        .find { it.id == uiState.selectedWorkflowId }?.name?.take(12)?.let { 
-                            if (it.length >= 12) "$it…" else it 
-                        } ?: "Workflow",
-                    isActive = uiState.selectedWorkflowId != null,
+                FilterChip(
+                    selected = uiState.selectedWorkflowId != null,
                     onClick = { showWorkflowFilterSheet = true },
-                    onClear = if (uiState.selectedWorkflowId != null) {
-                        { viewModel.setWorkflowFilter(null) }
-                    } else null,
+                    label = {
+                        Text(
+                            uiState.workflows.firstOrNull { it.id == uiState.selectedWorkflowId }?.name
+                                ?: "Workflow",
+                            maxLines = 1
+                        )
+                    },
+                    leadingIcon = { Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null) },
                     modifier = Modifier.weight(1f)
                 )
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Execution count
-            Text(
-                text = "${uiState.filteredExecutions.size} execution(s)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Content
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${uiState.filteredExecutions.size} executions",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (uiState.isRefreshing) {
+                    Text("Updating…", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            uiState.error?.let { message ->
+                N8nErrorBanner(
+                    message = message,
+                    actionLabel = "Retry",
+                    onAction = viewModel::refresh,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                )
+            }
+
             PullToRefreshBox(
-                isRefreshing = uiState.isLoading || uiState.isRefreshing,
-                onRefresh = { viewModel.refresh() },
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = viewModel::refresh,
                 modifier = Modifier.fillMaxSize()
             ) {
-                if (uiState.filteredExecutions.isEmpty() && !uiState.isLoading) {
-                    EmptyState(
-                        icon = Icons.Outlined.History,
-                        title = "No execution",
-                        message = "Your workflow executions will appear here",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(
-                            items = uiState.filteredExecutions,
-                            key = { it.id }
-                        ) { execution ->
-                            NeumorphicExecutionListItem(
-                                execution = execution,
-                                onClick = { onNavigateToExecution(execution.id) },
-                                onRetry = { viewModel.retryExecution(execution.id) },
-                                onStop = { viewModel.stopExecution(execution.id) }
-                            )
-                        }
-
-                        // Infinite scroll trigger
-                        item {
-                            LaunchedEffect(true) {
-                                viewModel.loadNextPage()
+                when {
+                    uiState.isLoading && uiState.filteredExecutions.isEmpty() -> {
+                        LoadingState(message = "Loading executions…")
+                    }
+                    uiState.filteredExecutions.isEmpty() -> {
+                        EmptyState(
+                            icon = Icons.Outlined.History,
+                            title = "No executions",
+                            message = if (uiState.selectedStatus != null || uiState.selectedWorkflowId != null) {
+                                "No runs match the selected filters."
+                            } else {
+                                "Workflow executions will appear here."
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp)
+                        )
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(uiState.filteredExecutions, key = { it.id }) { execution ->
+                                ExecutionListItem(
+                                    execution = execution,
+                                    onClick = { onNavigateToExecution(execution.id) },
+                                    onRetry = { viewModel.retryExecution(execution.id) },
+                                    onStop = { viewModel.stopExecution(execution.id) },
+                                    isActionInProgress = uiState.actionExecutionId == execution.id
+                                )
                             }
-                        }
-                        
-                        if (uiState.isLoadingMore) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        color = N8nPrimary,
-                                        strokeWidth = 2.dp
-                                    )
+                            if (uiState.nextCursor != null) {
+                                item(key = "load-more") {
+                                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                                        viewModel.loadNextPage()
+                                    }
+                                    if (uiState.isLoadingMore) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            androidx.compose.material3.CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                strokeWidth = 2.dp
+                                            )
+                                        }
+                                    }
                                 }
                             }
-                        }
-                        
-                        item {
-                            Spacer(modifier = Modifier.height(60.dp))
                         }
                     }
                 }
             }
         }
     }
-    
-    // Status filter bottom sheet
+
     if (showStatusFilterSheet) {
         ModalBottomSheet(
             onDismissRequest = { showStatusFilterSheet = false },
-            containerColor = MaterialTheme.colorScheme.background
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
-            NeumorphicStatusFilterContent(
+            StatusFilterSheet(
                 currentStatus = uiState.selectedStatus,
-                onStatusSelected = { status ->
-                    viewModel.setStatusFilter(status)
+                onSelected = {
+                    viewModel.setStatusFilter(it)
                     showStatusFilterSheet = false
                 }
             )
         }
     }
-    
-    // Workflow filter bottom sheet
+
     if (showWorkflowFilterSheet) {
         ModalBottomSheet(
             onDismissRequest = { showWorkflowFilterSheet = false },
-            containerColor = MaterialTheme.colorScheme.background
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
-            NeumorphicWorkflowFilterContent(
+            WorkflowFilterSheet(
                 workflows = uiState.workflows,
                 currentWorkflowId = uiState.selectedWorkflowId,
-                onWorkflowSelected = { workflowId ->
-                    viewModel.setWorkflowFilter(workflowId)
+                onSelected = {
+                    viewModel.setWorkflowFilter(it)
                     showWorkflowFilterSheet = false
                 }
             )
@@ -197,127 +231,21 @@ fun ExecutionsScreen(
 }
 
 @Composable
-private fun NeumorphicExecutionTopBar(
-    onBackClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        NeumorphicIconButton(
-            icon = Icons.AutoMirrored.Filled.ArrowBack,
-            onClick = onBackClick,
-            size = 44.dp,
-            iconSize = 22.dp,
-            tint = MaterialTheme.colorScheme.onSurface
-        )
-        
-        Text(
-            text = "Executions",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-    }
-}
-
-@Composable
-private fun NeumorphicFilterButton(
-    label: String,
-    isActive: Boolean,
-    onClick: () -> Unit,
-    onClear: (() -> Unit)?,
-    modifier: Modifier = Modifier
-) {
-    val neumorphColors = neumorphicColors()
-    
-    NeumorphicCard(
-        modifier = modifier.height(48.dp),
-        cornerRadius = 14.dp,
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(
-                    if (isActive) {
-                        Modifier.background(
-                            Brush.horizontalGradient(
-                                colors = listOf(
-                                    N8nPrimary.copy(alpha = 0.08f),
-                                    N8nPrimary.copy(alpha = 0.12f)
-                                )
-                            )
-                        )
-                    } else Modifier
-                )
-                .padding(horizontal = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (isActive) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(N8nPrimary)
-                    )
-                }
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isActive) N8nPrimary else MaterialTheme.colorScheme.onSurface,
-                    fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal
-                )
-            }
-            
-            if (onClear != null) {
-                IconButton(
-                    onClick = onClear,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Clear",
-                        tint = N8nPrimary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            } else {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun NeumorphicExecutionListItem(
-    execution: com.n8n.mobilemanager.data.model.Execution,
+private fun ExecutionListItem(
+    execution: Execution,
     onClick: () -> Unit,
     onRetry: () -> Unit,
-    onStop: () -> Unit
+    onStop: () -> Unit,
+    isActionInProgress: Boolean
 ) {
-    val neumorphColors = neumorphicColors()
-    
     NeumorphicCard(
         modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 20.dp,
-        onClick = onClick
+        cornerRadius = 14.dp,
+        onClick = onClick,
+        onClickLabel = "Open execution"
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
@@ -325,95 +253,57 @@ private fun NeumorphicExecutionListItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ExecutionStatusChip(status = execution.status)
-                
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "#${execution.id}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                ExecutionStatusChip(execution.status)
+                Text(
+                    text = "#${execution.id}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            
+
             Text(
                 text = execution.workflowName ?: "Workflow ${execution.workflowId}",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2
             )
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
-                    // Start time
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Schedule,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                        Text(
-                            text = DateUtils.formatFullDate(execution.startedAt),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Schedule, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(DateUtils.formatFullDate(execution.startedAt), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    
-                    // Duration
                     execution.stoppedAt?.let { stoppedAt ->
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Timer,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
-                            Text(
-                                text = DateUtils.calculateDuration(execution.startedAt, stoppedAt),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.Timer, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(DateUtils.calculateDuration(execution.startedAt, stoppedAt), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
-                
-                // Action buttons
+
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (execution.status == ExecutionStatus.RUNNING) {
                         NeumorphicIconButton(
                             icon = Icons.Filled.Stop,
                             onClick = onStop,
-                            size = 36.dp,
-                            iconSize = 18.dp,
-                            tint = StatusError
+                            iconSize = 20.dp,
+                            tint = MaterialTheme.colorScheme.error,
+                            contentDescription = "Stop execution",
+                            enabled = !isActionInProgress
                         )
                     }
-                    
-                    if (execution.status == ExecutionStatus.ERROR) {
+                    if (execution.status == ExecutionStatus.ERROR || execution.status == ExecutionStatus.CRASHED) {
                         NeumorphicIconButton(
                             icon = Icons.Filled.Refresh,
                             onClick = onRetry,
-                            size = 36.dp,
-                            iconSize = 18.dp,
-                            tint = N8nPrimary
+                            iconSize = 20.dp,
+                            tint = N8nPrimary,
+                            contentDescription = "Retry execution",
+                            enabled = !isActionInProgress
                         )
                     }
                 }
@@ -423,267 +313,69 @@ private fun NeumorphicExecutionListItem(
 }
 
 @Composable
-private fun NeumorphicStatusFilterContent(
+private fun StatusFilterSheet(
     currentStatus: ExecutionStatus?,
-    onStatusSelected: (ExecutionStatus?) -> Unit
+    onSelected: (ExecutionStatus?) -> Unit
 ) {
+    val statuses = listOf(null) + listOf(
+        ExecutionStatus.ERROR,
+        ExecutionStatus.SUCCESS,
+        ExecutionStatus.RUNNING,
+        ExecutionStatus.WAITING,
+        ExecutionStatus.CANCELED
+    )
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Text(
-            text = "Filter by status",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        NeumorphicStatusFilterOption(
-            status = null,
-            label = "All statuses",
-            isSelected = currentStatus == null,
-            onClick = { onStatusSelected(null) }
-        )
-        
-        val filterableStatuses = listOf(
-            ExecutionStatus.ERROR,
-            ExecutionStatus.SUCCESS,
-            ExecutionStatus.RUNNING,
-            ExecutionStatus.WAITING,
-            ExecutionStatus.CANCELED
-        )
-        
-        filterableStatuses.forEach { status ->
-            val label = getStatusLabel(status)
-            
-            NeumorphicStatusFilterOption(
-                status = status,
-                label = label,
-                isSelected = currentStatus == status,
-                onClick = { onStatusSelected(status) }
+        Text("Filter by status", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(24.dp))
+        statuses.forEach { status ->
+            FilterOption(
+                title = status?.let(::getStatusLabel) ?: "All statuses",
+                selected = currentStatus == status,
+                onClick = { onSelected(status) }
             )
         }
-        
-        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
 @Composable
-private fun NeumorphicStatusFilterOption(
-    status: ExecutionStatus?,
-    label: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    NeumorphicCard(
-        modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 16.dp,
-        isPressed = isSelected,
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(
-                    if (isSelected) {
-                        Modifier.background(
-                            Brush.horizontalGradient(
-                                colors = listOf(
-                                    N8nPrimary.copy(alpha = 0.08f),
-                                    N8nPrimary.copy(alpha = 0.12f)
-                                )
-                            )
-                        )
-                    } else Modifier
-                )
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (status != null) {
-                    ExecutionStatusChip(status = status)
-                } else {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (isSelected) N8nPrimary else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-            
-            if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(N8nPrimary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = androidx.compose.ui.graphics.Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun NeumorphicWorkflowFilterContent(
+private fun WorkflowFilterSheet(
     workflows: List<com.n8n.mobilemanager.data.model.Workflow>,
     currentWorkflowId: String?,
-    onWorkflowSelected: (String?) -> Unit
+    onSelected: (String?) -> Unit
 ) {
-    Column(
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 28.dp)) {
+        Text("Filter by workflow", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(24.dp))
+        LazyColumn(modifier = Modifier.heightIn(max = 520.dp)) {
+            item {
+                FilterOption(
+                    title = "All workflows",
+                    selected = currentWorkflowId == null,
+                    onClick = { onSelected(null) }
+                )
+            }
+            items(workflows, key = { it.id }) { workflow ->
+                FilterOption(
+                    title = workflow.name,
+                    selected = currentWorkflowId == workflow.id,
+                    onClick = { onSelected(workflow.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilterOption(title: String, selected: Boolean, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(title, maxLines = 2) },
+        leadingContent = { RadioButton(selected = selected, onClick = null) },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = "Filter by workflow",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        NeumorphicCard(
-            modifier = Modifier.fillMaxWidth(),
-            cornerRadius = 16.dp,
-            isPressed = currentWorkflowId == null,
-            onClick = { onWorkflowSelected(null) }
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(
-                        if (currentWorkflowId == null) {
-                            Modifier.background(
-                                Brush.horizontalGradient(
-                                    colors = listOf(
-                                        N8nPrimary.copy(alpha = 0.08f),
-                                        N8nPrimary.copy(alpha = 0.12f)
-                                    )
-                                )
-                            )
-                        } else Modifier
-                    )
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "All workflows",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (currentWorkflowId == null) N8nPrimary else MaterialTheme.colorScheme.onSurface
-                )
-                
-                if (currentWorkflowId == null) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(N8nPrimary),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = androidx.compose.ui.graphics.Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-        }
-        
-        workflows.forEach { workflow ->
-            NeumorphicCard(
-                modifier = Modifier.fillMaxWidth(),
-                cornerRadius = 16.dp,
-                isPressed = currentWorkflowId == workflow.id,
-                onClick = { onWorkflowSelected(workflow.id) }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(
-                            if (currentWorkflowId == workflow.id) {
-                                Modifier.background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(
-                                            N8nPrimary.copy(alpha = 0.08f),
-                                            N8nPrimary.copy(alpha = 0.12f)
-                                        )
-                                    )
-                                )
-                            } else Modifier
-                        )
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(
-                                    if (workflow.active) StatusSuccess.copy(alpha = 0.15f)
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (workflow.active) Icons.Filled.PlayCircle else Icons.Outlined.PauseCircle,
-                                contentDescription = null,
-                                tint = if (workflow.active) StatusSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Text(
-                            text = workflow.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = if (currentWorkflowId == workflow.id) N8nPrimary else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    
-                    if (currentWorkflowId == workflow.id) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(N8nPrimary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = androidx.compose.ui.graphics.Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(24.dp))
-    }
+            .clickable(onClick = onClick)
+            .semantics { role = Role.RadioButton }
+    )
 }

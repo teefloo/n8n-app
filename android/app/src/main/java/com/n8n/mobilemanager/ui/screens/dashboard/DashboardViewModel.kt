@@ -11,13 +11,15 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
+import java.util.concurrent.ConcurrentHashMap
 
 private const val TAG = "DashboardViewModel"
+private const val RECENT_EXECUTIONS_CACHE_DURATION_MS = 60 * 1000L
 
 enum class StatsPeriod(val label: String, val durationMs: Long?, val maxPages: Int) {
     LAST_24H("24h", 24 * 60 * 60 * 1000L, 4),    // ~1000 exécutions max
-    LAST_7D("7j", 7 * 24 * 60 * 60 * 1000L, 10),  // ~2500 exécutions max
-    LAST_30D("30j", 30 * 24 * 60 * 60 * 1000L, 20), // ~5000 exécutions max
+    LAST_7D("7d", 7 * 24 * 60 * 60 * 1000L, 10),  // ~2500 exécutions max
+    LAST_30D("30d", 30 * 24 * 60 * 60 * 1000L, 20), // ~5000 exécutions max
     ALL_TIME("All", null, 40)                     // ~10000 executions max
 }
 
@@ -61,28 +63,23 @@ class DashboardViewModel @Inject constructor(
 
     private var autoRefreshJob: Job? = null
     private var preloadJob: Job? = null
+    private var loadJob: Job? = null
+    private var backgroundRefreshJob: Job? = null
+    private var periodLoadJob: Job? = null
     private var lastObservedExecutionId: String? = null
 
-    companion object {
-        // Cache statique partagé entre toutes les instances du ViewModel
-        private var cachedState: DashboardUiState? = null
-        private var cachedInstanceId: Long? = null
-        
-        // Cache des stats par période
-        private val periodStatsCache = mutableMapOf<StatsPeriod, CachedPeriodStats>()
-        
-        // Cache des exécutions récentes
-        private var cachedRecentExecutions: List<Execution>? = null
-        private var recentExecutionsCacheTime: Long = 0
-        private const val RECENT_EXECUTIONS_CACHE_DURATION_MS = 60 * 1000L // 1 minute (augmenté)
-        
-        // Flag pour éviter le pré-chargement multiple
-        private var isPreloadingAllPeriods = false
-    }
+    // Keep dashboard data scoped to this ViewModel. A static cache can leak one
+    // instance's data into another account or a different screen lifecycle.
+    private var cachedState: DashboardUiState? = null
+    private var cachedInstanceId: Long? = null
+    private val periodStatsCache = ConcurrentHashMap<StatsPeriod, CachedPeriodStats>()
+    private var cachedRecentExecutions: List<Execution>? = null
+    private var recentExecutionsCacheTime: Long = 0
+    private var isPreloadingAllPeriods = false
+    private var periodRequestId = 0L
 
     private val _uiState = MutableStateFlow(
-        // Restaurer depuis le cache si disponible - affichage INSTANTANÉ
-        cachedState?.copy(isLoading = false, isRefreshing = false) ?: DashboardUiState(isLoading = true)
+        DashboardUiState(isLoading = true)
     )
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
@@ -217,12 +214,18 @@ class DashboardViewModel @Inject constructor(
      * Charge les données et pré-charge toutes les autres périodes en arrière-plan
      */
     private fun loadDataAndPreloadOthers(forceRefresh: Boolean) {
-        viewModelScope.launch {
-            // D'abord charger la période actuelle
-            loadData(forceRefresh)
-            
-            // Puis pré-charger les autres périodes en arrière-plan
-            preloadAllPeriods()
+        if (loadJob?.isActive == true) {
+            if (!forceRefresh) return
+            loadJob?.cancel()
+        }
+
+        loadJob = viewModelScope.launch {
+            try {
+                loadData(forceRefresh)
+                preloadAllPeriods()
+            } finally {
+                loadJob = null
+            }
         }
     }
     /**
@@ -239,79 +242,69 @@ class DashboardViewModel @Inject constructor(
         preloadJob = viewModelScope.launch {
             isPreloadingAllPeriods = true
             _uiState.update { it.copy(isPreloading = true) }
-            
-            val instance = _uiState.value.instance ?: return@launch
-            val currentPeriod = _uiState.value.selectedPeriod
-            
-            Log.d(TAG, "preloadAllPeriods: Starting preload for all periods except $currentPeriod")
-            val startTime = System.currentTimeMillis()
-            
-            // Charger les autres périodes en parallèle avec une priorité plus basse
-            val otherPeriods = StatsPeriod.entries.filter { it != currentPeriod }
-            
-            // Utiliser supervisorScope pour que les erreurs n'arrêtent pas les autres chargements
-            supervisorScope {
-                otherPeriods.map { period ->
-                    async(Dispatchers.IO) {
-                        try {
-                            // Vérifier si déjà en cache
-                            val cached = periodStatsCache[period]
-                            if (cached != null && cached.isValid()) {
-                                Log.d(TAG, "preloadAllPeriods: $period already cached, skipping")
-                                return@async
-                            }
-                            
-                            val startDate = period.durationMs?.let { duration ->
-                                System.currentTimeMillis() - duration
-                            }
-                            
-                            // Charger stats ET exécutions en parallèle pour cette période
-                            val statsDeferred = async { 
-                                repository.getInstanceStatsOptimized(startDate, period.maxPages) 
-                            }
-                            val executionsDeferred = async {
-                                repository.getExecutions(
-                                    limit = 10,
-                                    fetchAll = false,
-                                    includeWorkflowNames = true,
-                                    startDate = startDate
-                                )
-                            }
-                            
-                            val statsResult = statsDeferred.await()
-                            val executionsResult = executionsDeferred.await()
-                            
-                            // Combiner les résultats si les deux ont réussi
-                            statsResult.fold(
-                                onSuccess = { stats ->
-                                    val executions = executionsResult.getOrDefault(emptyList())
-                                    Log.d(TAG, "preloadAllPeriods: $period loaded - stats + ${executions.size} executions")
-                                    periodStatsCache[period] = CachedPeriodStats(
-                                        stats = stats,
-                                        executions = executions,
-                                        timestamp = System.currentTimeMillis(),
-                                        periodStartDate = startDate
-                                    )
-                                    _uiState.update { 
-                                        it.copy(preloadedPeriods = it.preloadedPeriods + period)
-                                    }
-                                },
-                                onFailure = { error ->
-                                    Log.w(TAG, "preloadAllPeriods: $period stats failed", error)
+
+            try {
+                val instance = _uiState.value.instance ?: return@launch
+                val instanceId = instance.id
+                val currentPeriod = _uiState.value.selectedPeriod
+
+                Log.d(TAG, "preloadAllPeriods: Starting preload for all periods except $currentPeriod")
+                val startTime = System.currentTimeMillis()
+                val otherPeriods = StatsPeriod.entries.filter { it != currentPeriod }
+
+                supervisorScope {
+                    otherPeriods.map { period ->
+                        async(Dispatchers.IO) {
+                            try {
+                                val cached = periodStatsCache[period]
+                                if (cached != null && cached.isValid()) return@async
+
+                                val startDate = period.durationMs?.let { duration ->
+                                    System.currentTimeMillis() - duration
                                 }
-                            )
-                        } catch (e: Exception) {
-                            Log.w(TAG, "preloadAllPeriods: $period exception", e)
+                                val statsDeferred = async {
+                                    repository.getInstanceStatsOptimized(startDate, period.maxPages)
+                                }
+                                val executionsDeferred = async {
+                                    repository.getExecutions(
+                                        limit = 10,
+                                        fetchAll = false,
+                                        includeWorkflowNames = true,
+                                        startDate = startDate
+                                    )
+                                }
+
+                                val statsResult = statsDeferred.await()
+                                val executionsResult = executionsDeferred.await()
+                                if (_uiState.value.instance?.id != instanceId) return@async
+                                statsResult.fold(
+                                    onSuccess = { stats ->
+                                        val executions = executionsResult.getOrDefault(emptyList())
+                                        periodStatsCache[period] = CachedPeriodStats(
+                                            stats = stats,
+                                            executions = executions,
+                                            timestamp = System.currentTimeMillis(),
+                                            periodStartDate = startDate
+                                        )
+                                        _uiState.update { it.copy(preloadedPeriods = it.preloadedPeriods + period) }
+                                    },
+                                    onFailure = { error ->
+                                        Log.w(TAG, "preloadAllPeriods: $period stats failed", error)
+                                    }
+                                )
+                            } catch (e: Exception) {
+                                Log.w(TAG, "preloadAllPeriods: $period exception", e)
+                            }
                         }
-                    }
-                }.awaitAll()
+                    }.awaitAll()
+                }
+
+                val elapsed = System.currentTimeMillis() - startTime
+                Log.d(TAG, "preloadAllPeriods: Completed in ${elapsed}ms, cached periods: ${periodStatsCache.keys}")
+            } finally {
+                isPreloadingAllPeriods = false
+                _uiState.update { it.copy(isPreloading = false) }
             }
-            
-            val elapsed = System.currentTimeMillis() - startTime
-            Log.d(TAG, "preloadAllPeriods: Completed in ${elapsed}ms, cached periods: ${periodStatsCache.keys}")
-            
-            isPreloadingAllPeriods = false
-            _uiState.update { it.copy(isPreloading = false) }
         }
     }
 
@@ -321,6 +314,9 @@ class DashboardViewModel @Inject constructor(
             Log.d(TAG, "setPeriod: Same period $period, ignoring")
             return
         }
+
+        val requestId = ++periodRequestId
+        periodLoadJob?.cancel()
 
         Log.d(TAG, "setPeriod: ===== CHANGING PERIOD from $currentPeriod to $period =====")
         Log.d(TAG, "setPeriod: Current cache keys: ${periodStatsCache.keys}")
@@ -344,19 +340,21 @@ class DashboardViewModel @Inject constructor(
             Log.d(TAG, "setPeriod: UI updated with cached data")
             
             // Rafraîchir silencieusement en arrière-plan pour garder les données à jour
-            viewModelScope.launch {
+            periodLoadJob = viewModelScope.launch {
                 refreshPeriodSilently(period)
             }
         } else {
             // Pas de cache, charger les données
             Log.d(TAG, "setPeriod: NO VALID CACHE for $period, loading fresh data...")
             _uiState.update { it.copy(selectedPeriod = period, isRefreshing = true) }
-            viewModelScope.launch {
+            periodLoadJob = viewModelScope.launch {
                 val instance = _uiState.value.instance
                 if (instance != null) {
-                    loadStatsAndExecutions(instance)
+                    loadStatsAndExecutions(instance, period)
                 }
-                _uiState.update { it.copy(isRefreshing = false) }
+                if (requestId == periodRequestId && _uiState.value.selectedPeriod == period) {
+                    _uiState.update { it.copy(isRefreshing = false) }
+                }
             }
         }
     }
@@ -372,21 +370,20 @@ class DashboardViewModel @Inject constructor(
                 System.currentTimeMillis() - duration
             }
             
-            // Charger stats et exécutions en parallèle
-            val statsDeferred = viewModelScope.async(Dispatchers.IO) {
-                repository.getInstanceStatsOptimized(startDate, period.maxPages)
+            val (statsResult, executionsResult) = coroutineScope {
+                val statsDeferred = async(Dispatchers.IO) {
+                    repository.getInstanceStatsOptimized(startDate, period.maxPages)
+                }
+                val executionsDeferred = async(Dispatchers.IO) {
+                    repository.getExecutions(
+                        limit = 10,
+                        fetchAll = false,
+                        includeWorkflowNames = true,
+                        startDate = startDate
+                    )
+                }
+                statsDeferred.await() to executionsDeferred.await()
             }
-            val executionsDeferred = viewModelScope.async(Dispatchers.IO) {
-                repository.getExecutions(
-                    limit = 10,
-                    fetchAll = false,
-                    includeWorkflowNames = true,
-                    startDate = startDate
-                )
-            }
-            
-            val statsResult = statsDeferred.await()
-            val executionsResult = executionsDeferred.await()
             
             statsResult.fold(
                 onSuccess = { stats ->
@@ -425,6 +422,7 @@ class DashboardViewModel @Inject constructor(
         // Invalider le cache pour forcer un rechargement complet
         periodStatsCache.clear()
         cachedRecentExecutions = null
+        _uiState.update { it.copy(preloadedPeriods = emptySet()) }
         loadDataAndPreloadOthers(forceRefresh = true)
     }
     
@@ -435,27 +433,37 @@ class DashboardViewModel @Inject constructor(
         cachedRecentExecutions = null
         recentExecutionsCacheTime = 0
         isPreloadingAllPeriods = false
+        lastObservedExecutionId = null
+        loadJob?.cancel()
+        backgroundRefreshJob?.cancel()
+        periodLoadJob?.cancel()
+        preloadJob?.cancel()
+        periodRequestId++
+        _uiState.update { it.copy(preloadedPeriods = emptySet()) }
     }
     
     /**
      * Charge les données en arrière-plan sans bloquer l'UI
      */
     private fun loadDataInBackground(refreshAllPeriods: Boolean = false) {
-        viewModelScope.launch {
+        if (backgroundRefreshJob?.isActive == true) return
+
+        backgroundRefreshJob = viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true, error = null) }
-            
-            val instance = _uiState.value.instance
-            if (instance != null) {
-                loadStatsAndExecutions(instance)
-                
-                // Optionnellement rafraîchir toutes les périodes
-                if (refreshAllPeriods) {
-                    preloadAllPeriods()
+
+            try {
+                val instance = _uiState.value.instance
+                if (instance != null) {
+                    loadStatsAndExecutions(instance, _uiState.value.selectedPeriod)
+                    if (refreshAllPeriods) {
+                        preloadAllPeriods()
+                    }
                 }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false) }
+                cachedState = _uiState.value
+                backgroundRefreshJob = null
             }
-            
-            _uiState.update { it.copy(isRefreshing = false) }
-            cachedState = _uiState.value
         }
     }
     
@@ -494,23 +502,19 @@ class DashboardViewModel @Inject constructor(
 
         val instance = _uiState.value.instance
         if (instance != null) {
-            // Test de connexion en parallèle avec le chargement des données
-            val connectionDeferred = viewModelScope.async {
-                repository.testConnection(instance)
+            coroutineScope {
+                val connectionDeferred = async(Dispatchers.IO) {
+                    repository.testConnection(instance)
+                }
+                val dataDeferred = async {
+                    loadStatsAndExecutions(instance, selectedPeriod)
+                }
+                val connectionResult = connectionDeferred.await()
+                if (_uiState.value.instance?.id == instance.id) {
+                    _uiState.update { it.copy(isOnline = connectionResult.isSuccess) }
+                }
+                dataDeferred.await()
             }
-            
-            // Commencer à charger les données immédiatement sans attendre le test de connexion
-            val dataDeferred = viewModelScope.async {
-                loadStatsAndExecutions(instance)
-            }
-            
-            // Attendre le résultat du test de connexion
-            val connectionResult = connectionDeferred.await()
-            val isOnline = connectionResult.isSuccess
-            _uiState.update { it.copy(isOnline = isOnline) }
-            
-            // Attendre le chargement des données
-            dataDeferred.await()
         }
 
         _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
@@ -522,8 +526,8 @@ class DashboardViewModel @Inject constructor(
     /**
      * Charge les stats et exécutions en parallèle pour de meilleures performances
      */
-    private suspend fun loadStatsAndExecutions(instance: N8nInstance) {
-        val selectedPeriod = _uiState.value.selectedPeriod
+    private suspend fun loadStatsAndExecutions(instance: N8nInstance, period: StatsPeriod) {
+        val selectedPeriod = period
         val startDate = selectedPeriod.durationMs?.let { duration ->
             System.currentTimeMillis() - duration
         }
@@ -531,26 +535,27 @@ class DashboardViewModel @Inject constructor(
         Log.d(TAG, "loadStatsAndExecutions: Starting parallel load for period $selectedPeriod")
         val startTime = System.currentTimeMillis()
         
-        // Lancer les deux requêtes en parallèle avec async
-        val statsDeferred = viewModelScope.async(Dispatchers.IO) {
-            repository.getInstanceStatsOptimized(startDate, selectedPeriod.maxPages)
+        val (statsResult, executionsResult) = coroutineScope {
+            val statsDeferred = async(Dispatchers.IO) {
+                repository.getInstanceStatsOptimized(startDate, selectedPeriod.maxPages)
+            }
+            val executionsDeferred = async(Dispatchers.IO) {
+                repository.getExecutions(
+                    limit = 10,
+                    fetchAll = false,
+                    includeWorkflowNames = true,
+                    startDate = startDate
+                )
+            }
+            statsDeferred.await() to executionsDeferred.await()
         }
-        
-        val executionsDeferred = viewModelScope.async(Dispatchers.IO) {
-            repository.getExecutions(
-                limit = 10, 
-                fetchAll = false, 
-                includeWorkflowNames = true,
-                startDate = startDate // Filter by start date
-            )
-        }
-        
-        // Attendre les résultats
-        val statsResult = statsDeferred.await()
-        val executionsResult = executionsDeferred.await()
         
         val elapsed = System.currentTimeMillis() - startTime
         Log.d(TAG, "loadStatsAndExecutions: Parallel load completed in ${elapsed}ms")
+
+        if (_uiState.value.instance?.id != instance.id || _uiState.value.selectedPeriod != selectedPeriod) {
+            return
+        }
         
         // Récupérer les exécutions (même si les stats échouent)
         val loadedExecutions = executionsResult.getOrNull() ?: emptyList()
@@ -631,5 +636,3 @@ class DashboardViewModel @Inject constructor(
         }
     }
 }
-
-

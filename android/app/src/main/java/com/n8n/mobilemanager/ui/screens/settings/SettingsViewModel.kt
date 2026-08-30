@@ -4,15 +4,23 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.n8n.mobilemanager.data.local.PreferencesManager
 import com.n8n.mobilemanager.data.model.N8nInstance
+import com.n8n.mobilemanager.data.remote.normalizeN8nBaseUrl
 import com.n8n.mobilemanager.data.repository.N8nRepository
 import com.n8n.mobilemanager.utils.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
     val instances: List<N8nInstance> = emptyList(),
+    val hasLoadedInstances: Boolean = false,
     val activeInstanceId: Long? = null,
     val themeMode: PreferencesManager.ThemeMode = PreferencesManager.ThemeMode.SYSTEM,
     val biometricEnabled: Boolean = false,
@@ -46,6 +54,10 @@ class SettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
+    private var connectionJob: Job? = null
+    private var saveJob: Job? = null
+    private var instanceActionJob: Job? = null
+
     init {
         observeInstances()
         observePreferences()
@@ -53,15 +65,25 @@ class SettingsViewModel @Inject constructor(
 
     private fun observeInstances() {
         viewModelScope.launch {
-            repository.getAllInstances().collect { instances ->
+            repository.getAllInstances()
+                .catch { error ->
+                    _uiState.update {
+                        it.copy(
+                            hasLoadedInstances = true,
+                            error = error.message ?: "Unable to load saved instances"
+                        )
+                    }
+                }
+                .collect { instances ->
                 val activeInstance = instances.find { it.isActive }
                 _uiState.update { 
                     it.copy(
                         instances = instances,
+                        hasLoadedInstances = true,
                         activeInstanceId = activeInstance?.id
                     )
                 }
-            }
+                }
         }
     }
 
@@ -135,7 +157,8 @@ class SettingsViewModel @Inject constructor(
                 instanceName = "",
                 instanceUrl = "",
                 instanceApiKey = "",
-                connectionTestResult = null
+                connectionTestResult = null,
+                error = null
             )
         }
     }
@@ -148,7 +171,8 @@ class SettingsViewModel @Inject constructor(
                 instanceName = instance.name,
                 instanceUrl = instance.baseUrl,
                 instanceApiKey = instance.apiKey,
-                connectionTestResult = null
+                connectionTestResult = null,
+                error = null
             )
         }
     }
@@ -168,31 +192,34 @@ class SettingsViewModel @Inject constructor(
     }
     
     fun updateInstanceName(name: String) {
-        _uiState.update { it.copy(instanceName = name) }
+        _uiState.update { it.copy(instanceName = name, error = null) }
     }
     
     fun updateInstanceUrl(url: String) {
-        _uiState.update { it.copy(instanceUrl = url, connectionTestResult = null) }
+        _uiState.update { it.copy(instanceUrl = url, connectionTestResult = null, error = null) }
     }
     
     fun updateInstanceApiKey(apiKey: String) {
-        _uiState.update { it.copy(instanceApiKey = apiKey, connectionTestResult = null) }
+        _uiState.update { it.copy(instanceApiKey = apiKey, connectionTestResult = null, error = null) }
     }
     
     fun testConnection() {
         val state = _uiState.value
-        if (state.instanceUrl.isBlank() || state.instanceApiKey.isBlank()) {
-            _uiState.update { it.copy(error = "URL and API Key required") }
+        if (connectionJob?.isActive == true || saveJob?.isActive == true) return
+
+        val normalizedUrl = validateUrl(state.instanceUrl) ?: return
+        if (state.instanceApiKey.isBlank()) {
+            _uiState.update { it.copy(error = "API key is required") }
             return
         }
         
-        viewModelScope.launch {
+        connectionJob = viewModelScope.launch {
             _uiState.update { it.copy(isTestingConnection = true, connectionTestResult = null) }
             
             val testInstance = N8nInstance(
                 id = state.editingInstance?.id ?: 0,
-                name = state.instanceName.ifBlank { "Test" },
-                baseUrl = state.instanceUrl,
+                name = state.instanceName.trim().ifBlank { "Test" },
+                baseUrl = normalizedUrl,
                 apiKey = state.instanceApiKey
             )
             
@@ -219,35 +246,32 @@ class SettingsViewModel @Inject constructor(
     
     fun saveInstance() {
         val state = _uiState.value
-        
+        if (saveJob?.isActive == true || connectionJob?.isActive == true) return
         if (state.instanceName.isBlank()) {
-            _uiState.update { it.copy(error = "Name required") }
+            _uiState.update { it.copy(error = "Instance name is required") }
             return
         }
-        if (state.instanceUrl.isBlank()) {
-            _uiState.update { it.copy(error = "URL required") }
-            return
-        }
+        val normalizedUrl = validateUrl(state.instanceUrl) ?: return
         if (state.instanceApiKey.isBlank()) {
-            _uiState.update { it.copy(error = "API Key required") }
+            _uiState.update { it.copy(error = "API key is required") }
             return
         }
         
-        viewModelScope.launch {
+        saveJob = viewModelScope.launch {
             _uiState.update { it.copy(isSavingInstance = true, error = null) }
             
             val result = if (state.editingInstance != null) {
                 repository.updateInstance(
                     state.editingInstance.copy(
-                        name = state.instanceName,
-                        baseUrl = state.instanceUrl,
+                        name = state.instanceName.trim(),
+                        baseUrl = normalizedUrl,
                         apiKey = state.instanceApiKey
                     )
                 )
             } else {
                 repository.addInstance(
-                    name = state.instanceName,
-                    baseUrl = state.instanceUrl,
+                    name = state.instanceName.trim(),
+                    baseUrl = normalizedUrl,
                     apiKey = state.instanceApiKey
                 ).map { }
             }
@@ -279,18 +303,37 @@ class SettingsViewModel @Inject constructor(
     }
     
     fun setActiveInstance(instanceId: Long) {
-        viewModelScope.launch {
-            repository.setActiveInstance(instanceId)
+        if (instanceActionJob?.isActive == true || saveJob?.isActive == true) return
+        instanceActionJob = viewModelScope.launch {
+            repository.setActiveInstance(instanceId).fold(
+                onSuccess = { _uiState.update { it.copy(error = null) } },
+                onFailure = { error -> _uiState.update { it.copy(error = error.message ?: "Unable to switch instance") } }
+            )
         }
     }
     
     fun deleteInstance(instance: N8nInstance) {
-        viewModelScope.launch {
-            repository.deleteInstance(instance)
+        if (instanceActionJob?.isActive == true || saveJob?.isActive == true) return
+        instanceActionJob = viewModelScope.launch {
+            repository.deleteInstance(instance).fold(
+                onSuccess = { _uiState.update { it.copy(error = null) } },
+                onFailure = { error -> _uiState.update { it.copy(error = error.message ?: "Unable to delete instance") } }
+            )
         }
     }
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    private fun validateUrl(value: String): String? {
+        if (value.isBlank()) {
+            _uiState.update { it.copy(error = "URL required") }
+            return null
+        }
+        return normalizeN8nBaseUrl(value).getOrElse { error ->
+            _uiState.update { it.copy(error = error.message ?: "Enter a valid n8n URL") }
+            null
+        }
     }
 }

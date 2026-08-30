@@ -107,7 +107,7 @@ Fill out the questionnaires:
 
 ### 4. Release
 1. Go to "Production" > "Create new release"
-2. Upload AAB file: `app-debug.aab` (or release version)
+2. Upload AAB file: `app-release.aab` (release build only)
 3. Add release notes:
    ```
    Initial release of n8n Manager v1.0.0

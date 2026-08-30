@@ -44,7 +44,7 @@ Native Android app for managing n8n workflows. Built with Kotlin, Jetpack Compos
 | Database | Room, DataStore |
 | Async | Kotlin Coroutines, Flow |
 | Min SDK | 26 (Android 8.0) |
-| Target SDK | 35 |
+| Target SDK | 36 |
 
 ## Code Style
 

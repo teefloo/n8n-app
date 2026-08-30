@@ -1,36 +1,62 @@
 package com.n8n.mobilemanager.ui.screens.credentials
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.automirrored.outlined.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.n8n.mobilemanager.ui.components.*
-import com.n8n.mobilemanager.ui.theme.*
+import com.n8n.mobilemanager.ui.components.EmptyState
+import com.n8n.mobilemanager.ui.components.LoadingState
+import com.n8n.mobilemanager.ui.components.N8nErrorBanner
+import com.n8n.mobilemanager.ui.components.N8nSectionHeader
+import com.n8n.mobilemanager.ui.components.N8nTopAppBar
+import com.n8n.mobilemanager.ui.components.NeumorphicTextField
+import com.n8n.mobilemanager.ui.components.CredentialCard
 import com.n8n.mobilemanager.utils.DateUtils
-import java.util.*
+import androidx.compose.foundation.text.KeyboardOptions
 
-@OptIn(ExperimentalMaterial3Api::class)
+@androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun CredentialsScreen(
     viewModel: CredentialsViewModel = hiltViewModel(),
@@ -38,147 +64,112 @@ fun CredentialsScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
-    // Derive filtered credentials from uiState to be reactive
-    val filteredCredentials = remember(uiState.credentials, uiState.searchQuery) {
-        if (uiState.searchQuery.isEmpty()) {
-            uiState.credentials
-        } else {
-            uiState.credentials.filter { credential ->
-                credential.name.contains(uiState.searchQuery, ignoreCase = true) ||
-                credential.type.contains(uiState.searchQuery, ignoreCase = true)
-            }
-        }
-    }
-    
-    // Login Dialog
+
     if (uiState.showLoginDialog) {
         LoginDialog(
             isLoading = uiState.isLoggingIn,
-            onDismiss = { viewModel.hideLoginDialog() },
-            onLogin = { email, password ->
-                viewModel.loadCredentialsWithPassword(email, password)
-            }
+            errorMessage = uiState.error,
+            onDismiss = viewModel::hideLoginDialog,
+            onLogin = viewModel::loadCredentialsWithPassword
         )
     }
-    
+
     Scaffold(
-        topBar = {
-            CredentialsTopBar(onBackClick = onNavigateBack)
-        },
+        topBar = { N8nTopAppBar(title = "Credentials", onBack = onNavigateBack) },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Search bar with neumorphic style
             NeumorphicTextField(
                 value = uiState.searchQuery,
                 onValueChange = viewModel::updateSearchQuery,
-                placeholder = "Search credentials…",
-                leadingIcon = Icons.Default.Search,
+                placeholder = "Search credentials",
+                leadingIcon = Icons.Filled.Search,
                 trailingIcon = if (uiState.searchQuery.isNotEmpty()) {
                     {
                         IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Icon(Icons.Filled.Clear, contentDescription = "Clear search")
                         }
                     }
                 } else null,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
             )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Credentials count (only show when not loading and no error)
-            if (!uiState.isLoading && uiState.error == null) {
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Text(
-                    text = "${filteredCredentials.size} credential(s)",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(horizontal = 20.dp)
+                    text = "${uiState.filteredCredentials.size} credentials",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                if (uiState.isRefreshing) {
+                    Text("Updating…", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            
-            // Content
+
+            uiState.error?.takeIf { uiState.credentials.isNotEmpty() }?.let { message ->
+                N8nErrorBanner(
+                    message = message,
+                    actionLabel = "Retry",
+                    onAction = viewModel::refresh,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                )
+            }
+
             PullToRefreshBox(
-                isRefreshing = uiState.isLoading || uiState.isRefreshing,
-                onRefresh = { viewModel.refresh() },
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = viewModel::refresh,
                 modifier = Modifier.fillMaxSize()
             ) {
                 when {
-                    // État de chargement initial
                     uiState.isLoading && uiState.credentials.isEmpty() -> {
-                        LoadingState(
-                            message = "Loading credentials...",
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        LoadingState(message = "Loading credentials…")
                     }
-                    // Erreur avec liste vide
                     uiState.error != null && uiState.credentials.isEmpty() -> {
-                        val isAccessDenied = uiState.error?.contains("405") == true || 
-                                             uiState.error?.contains("autorisé") == true ||
-                                             uiState.error?.contains("scopes") == true
-                        
+                        val accessDenied = uiState.error?.contains("denied", ignoreCase = true) == true ||
+                            uiState.error?.contains("scope", ignoreCase = true) == true
                         EmptyState(
-                            icon = if (isAccessDenied) Icons.Outlined.Lock else Icons.Outlined.ErrorOutline,
-                            title = if (isAccessDenied) "Access denied" else "Loading error",
-                            message = uiState.error ?: "Unknown error",
-                            modifier = Modifier.fillMaxSize(),
+                            icon = if (accessDenied) Icons.Outlined.Lock else Icons.Outlined.ErrorOutline,
+                            title = if (accessDenied) "Access denied" else "Unable to load credentials",
+                            message = uiState.error ?: "An unexpected error occurred.",
+                            modifier = Modifier.fillMaxWidth().padding(20.dp),
                             action = {
-                                NeumorphicButton(
-                                    text = "Login",
-                                    icon = Icons.AutoMirrored.Filled.Login,
-                                    onClick = { viewModel.showLoginDialog() },
-                                    modifier = Modifier.width(240.dp)
-                                )
+                                Button(onClick = viewModel::showLoginDialog) {
+                                    Text("Sign in")
+                                }
                             }
                         )
                     }
-                    // Liste vide sans erreur
-                    filteredCredentials.isEmpty() && !uiState.isLoading -> {
+                    uiState.filteredCredentials.isEmpty() -> {
                         EmptyState(
                             icon = Icons.Outlined.Key,
-                            title = if (uiState.searchQuery.isNotEmpty()) "No results" else "No credentials",
-                            message = if (uiState.searchQuery.isNotEmpty()) 
-                                "Try with other terms" 
-                            else 
-                                "Configure your credentials in n8n",
-                            modifier = Modifier.fillMaxSize()
+                            title = if (uiState.searchQuery.isNotBlank()) "No matching credentials" else "No credentials",
+                            message = if (uiState.searchQuery.isNotBlank()) "Try a different search." else "Configure credentials in n8n.",
+                            modifier = Modifier.fillMaxWidth().padding(20.dp)
                         )
                     }
-                    // Liste avec des credentials
                     else -> {
                         LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(
-                                items = filteredCredentials,
-                                key = { it.id }
-                            ) { credential ->
+                            items(uiState.filteredCredentials, key = { it.id }) { credential ->
                                 CredentialCard(
                                     name = credential.name,
                                     type = formatCredentialType(credential.type),
-                                    lastUpdated = "Updated on ${DateUtils.formatFullDate(credential.updatedAt)}",
+                                    lastUpdated = "Updated ${DateUtils.formatFullDate(credential.updatedAt)}",
                                     onClick = { onNavigateToCredential(credential.id) }
                                 )
-                            }
-                            
-                            item {
-                                Spacer(modifier = Modifier.height(60.dp))
                             }
                         }
                     }
@@ -192,59 +183,46 @@ fun CredentialsScreen(
 fun LoginDialog(
     isLoading: Boolean,
     onDismiss: () -> Unit,
-    onLogin: (String, String) -> Unit
+    onLogin: (String, String) -> Unit,
+    errorMessage: String? = null
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    
-    Dialog(onDismissRequest = onDismiss) {
-        NeumorphicCard(
-            cornerRadius = 24.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
+
+    AlertDialog(
+        onDismissRequest = { if (!isLoading) onDismiss() },
+        title = { Text("Sign in to n8n") },
+        text = {
             Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Authentication Required",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                
-                Text(
-                    text = "Please login to access credentials.",
+                    "Use your n8n account only when the API key does not have credential access.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                
-                // Email
                 NeumorphicTextField(
                     value = email,
                     onValueChange = { email = it },
                     placeholder = "Email",
-                    leadingIcon = Icons.Default.Email,
+                    leadingIcon = Icons.Filled.Email,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     modifier = Modifier.fillMaxWidth()
                 )
-                
-                // Password
                 NeumorphicTextField(
                     value = password,
                     onValueChange = { password = it },
                     placeholder = "Password",
-                    leadingIcon = Icons.Default.Lock,
+                    leadingIcon = Icons.Filled.Lock,
                     trailingIcon = {
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
-                                imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = if (passwordVisible) "Hide" else "Show",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = if (passwordVisible) "Hide password" else "Show password"
                             )
                         }
                     },
@@ -252,75 +230,30 @@ fun LoginDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth()
                 )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(
-                            text = "Cancel",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    NeumorphicButton(
-                        text = if (isLoading) "Connecting..." else "Login",
-                        onClick = { onLogin(email, password) },
-                        modifier = Modifier.width(140.dp),
-                        enabled = !isLoading && email.isNotBlank() && password.isNotBlank()
-                    )
+                errorMessage?.let {
+                    N8nErrorBanner(message = it)
                 }
             }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onLogin(email.trim(), password) },
+                enabled = !isLoading && email.isNotBlank() && password.isNotBlank()
+            ) {
+                Text(if (isLoading) "Signing in…" else "Sign in")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isLoading) { Text("Cancel") }
         }
-    }
+    )
 }
 
-@Composable
-private fun CredentialsTopBar(
-    onBackClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            NeumorphicIconButton(
-                icon = Icons.AutoMirrored.Filled.ArrowBack,
-                onClick = onBackClick,
-                size = 44.dp,
-                iconSize = 22.dp,
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-            
-            Text(
-                text = "Credentials",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
-    }
-}
-
-private fun formatCredentialType(type: String): String {
-    return type
-        .split(Regex("(?=[A-Z])"))
-        .joinToString(" ")
-        .trim()
-        .replace("Api", "API")
-        .replace("Oauth2", "OAuth 2.0")
-        .replace(" My Sql", " MySQL")
-        .replace(" Ai", " AI")
-}
+private fun formatCredentialType(type: String): String = type
+    .split(Regex("(?=[A-Z])"))
+    .joinToString(" ")
+    .trim()
+    .replace("Api", "API")
+    .replace("Oauth2", "OAuth 2.0")
+    .replace(" My Sql", " MySQL")
+    .replace(" Ai", " AI")

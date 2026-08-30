@@ -69,7 +69,7 @@
 
 - **Android Studio** Hedgehog (2023.1.1) or newer
 - **JDK 17** or newer
-- **Android SDK** version 35
+- **Android SDK** version 36
 - **Device/Emulator** Android API 26+ (Android 8.0)
 
 ### Steps
@@ -106,6 +106,8 @@ To use the application, you need:
    - Go to `Settings > API > API Keys` in your n8n
    - Create a new API key
    - Copy the generated key
+
+API keys are encrypted locally with Android Keystore before being saved in the Room database. The Keystore key is device-bound and is not included in backups; a restored installation may require entering the API key again.
 
 ### Firebase Configuration (optional)
 
@@ -151,7 +153,7 @@ app/src/main/java/com/n8n/mobilemanager/
 | **Database** | Room, DataStore |
 | **Async** | Kotlin Coroutines, Flow |
 | **Notifications** | Firebase Cloud Messaging |
-| **Security** | BiometricPrompt, HTTPS |
+| **Security** | BiometricPrompt, Android Keystore for login credentials, HTTPS |
 
 ## 📱 Screenshots
 

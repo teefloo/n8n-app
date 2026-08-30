@@ -1,22 +1,30 @@
 package com.n8n.mobilemanager.data.repository
 
 import android.util.Log
+import com.n8n.mobilemanager.data.local.ApiKeyCipher
 import com.n8n.mobilemanager.data.local.InstanceDao
 import com.n8n.mobilemanager.data.local.PreferencesManager
 import com.n8n.mobilemanager.data.model.*
 import com.n8n.mobilemanager.data.remote.N8nApiService
+import com.n8n.mobilemanager.data.remote.normalizeN8nBaseUrl
 import com.n8n.mobilemanager.di.ApiServiceFactory
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "N8nRepository"
+
+private fun Exception.rethrowIfCancellation() {
+    if (this is CancellationException) throw this
+}
 
 data class PaginatedExecutions(
     val executions: List<Execution>,
@@ -35,17 +43,22 @@ class N8nRepository @Inject constructor(
     
     // ==================== Instances ====================
     
-    fun getAllInstances(): Flow<List<N8nInstance>> = instanceDao.getAllInstances()
+    fun getAllInstances(): Flow<List<N8nInstance>> =
+        instanceDao.getAllInstances().map { instances ->
+            instances.map { it.decryptApiKey() }
+        }
     
-    fun getActiveInstanceFlow(): Flow<N8nInstance?> = instanceDao.getActiveInstanceFlow()
+    fun getActiveInstanceFlow(): Flow<N8nInstance?> =
+        instanceDao.getActiveInstanceFlow().map { it?.decryptApiKey() }
     
-    suspend fun getActiveInstance(): N8nInstance? = instanceDao.getActiveInstance()
+    suspend fun getActiveInstance(): N8nInstance? = instanceDao.getActiveInstance()?.decryptApiKey()
     
-    suspend fun getInstanceById(id: Long): N8nInstance? = instanceDao.getInstanceById(id)
+    suspend fun getInstanceById(id: Long): N8nInstance? = instanceDao.getInstanceById(id)?.decryptApiKey()
     
     suspend fun addInstance(name: String, baseUrl: String, apiKey: String): Result<N8nInstance> {
         return withContext(Dispatchers.IO) {
             try {
+                val normalizedUrl = normalizeN8nBaseUrl(baseUrl).getOrThrow()
                 // On récupère toutes les instances pour vérifier si c'est la première
                 val allInstances = instanceDao.getAllInstances().first()
                 val hasActive = allInstances.any { it.isActive }
@@ -53,21 +66,22 @@ class N8nRepository @Inject constructor(
                 
                 val instance = N8nInstance(
                     name = name.ifBlank { "Instance ${allInstances.size + 1}" },
-                    baseUrl = baseUrl.trimEnd('/'),
-                    apiKey = apiKey,
+                    baseUrl = normalizedUrl,
+                    apiKey = apiKey.trim(),
                     isActive = isFirst || !hasActive // Active si c'est la première ou si aucune n'est active
                 )
                 
-                val id = instanceDao.insertInstance(instance)
+                val id = instanceDao.insertInstance(instance.encryptApiKey())
                 
                 // On synchronise aussi dans les préférences si c'est l'instance active
                 if (isFirst || !hasActive) {
                     preferencesManager.setActiveInstanceId(id)
                 }
                 
-                val saved = instanceDao.getInstanceById(id)
-                Result.success(saved!!)
+                val saved = instanceDao.getInstanceById(id)?.decryptApiKey()
+                if (saved != null) Result.success(saved) else Result.failure(Exception("Instance was not saved"))
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Result.failure(e)
             }
         }
@@ -76,20 +90,50 @@ class N8nRepository @Inject constructor(
     suspend fun updateInstance(instance: N8nInstance): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
-                instanceDao.updateInstance(instance.copy(baseUrl = instance.baseUrl.trimEnd('/')))
+                val normalizedUrl = normalizeN8nBaseUrl(instance.baseUrl).getOrThrow()
+                instanceDao.updateInstance(
+                    instance.copy(baseUrl = normalizedUrl, apiKey = instance.apiKey.trim()).encryptApiKey()
+                )
                 Result.success(Unit)
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Result.failure(e)
             }
         }
     }
+
+    private fun N8nInstance.encryptApiKey(): N8nInstance = copy(
+        apiKey = if (ApiKeyCipher.isEncrypted(apiKey)) apiKey else ApiKeyCipher.encrypt(apiKey)
+    )
+
+    private fun N8nInstance.decryptApiKey(): N8nInstance = copy(
+        apiKey = if (ApiKeyCipher.isEncrypted(apiKey)) {
+            ApiKeyCipher.decrypt(apiKey).orEmpty()
+        } else {
+            apiKey
+        }
+    )
     
     suspend fun deleteInstance(instance: N8nInstance): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
-                instanceDao.deleteInstance(instance)
+                val storedInstance = instanceDao.getInstanceById(instance.id)
+                    ?: return@withContext Result.failure(Exception("Instance no longer exists"))
+                val wasActive = storedInstance.isActive
+                instanceDao.deleteInstanceById(instance.id)
+
+                if (wasActive) {
+                    val fallback = instanceDao.getAllInstances().first().firstOrNull()
+                    if (fallback != null) {
+                        instanceDao.setAsActive(fallback.id)
+                        preferencesManager.setActiveInstanceId(fallback.id)
+                    } else {
+                        preferencesManager.setActiveInstanceId(null)
+                    }
+                }
                 Result.success(Unit)
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Result.failure(e)
             }
         }
@@ -98,10 +142,14 @@ class N8nRepository @Inject constructor(
     suspend fun setActiveInstance(id: Long): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
+                if (instanceDao.getInstanceById(id) == null) {
+                    return@withContext Result.failure(Exception("Instance no longer exists"))
+                }
                 instanceDao.setAsActive(id)
                 preferencesManager.setActiveInstanceId(id)
                 Result.success(Unit)
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Result.failure(e)
             }
         }
@@ -112,20 +160,23 @@ class N8nRepository @Inject constructor(
     suspend fun testConnection(instance: N8nInstance): Result<InstanceStatus> {
         return withContext(Dispatchers.IO) {
             try {
-                val apiService = apiServiceFactory.create(instance)
+                val normalizedInstance = instance.copy(
+                    baseUrl = normalizeN8nBaseUrl(instance.baseUrl).getOrThrow()
+                )
+                val apiService = apiServiceFactory.create(normalizedInstance)
                 val response = apiService.healthCheck()
                 
                 if (response.isSuccessful) {
                     instanceDao.updateLastConnected(instance.id, System.currentTimeMillis())
-                    
-                    // Get workflow count for status
-                    val workflowsResponse = apiService.getWorkflows(limit = 1)
-                    val activeWorkflowsResponse = apiService.getWorkflows(active = true, limit = 1)
-                    
+
+                    // Health checks should only answer whether the endpoint is reachable.
+                    // Loading workflow counts here made every test action perform three
+                    // network calls and could report success for a healthy but unauthorized
+                    // workflow endpoint.
                     Result.success(
                         InstanceStatus(
                             isOnline = true,
-                            totalWorkflows = 0, // Would need to parse from headers or make additional call
+                            totalWorkflows = 0,
                             activeWorkflows = 0
                         )
                     )
@@ -133,6 +184,7 @@ class N8nRepository @Inject constructor(
                     Result.failure(Exception("Connection failed: ${response.code()}"))
                 }
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Result.failure(e)
             }
         }
@@ -372,6 +424,7 @@ class N8nRepository @Inject constructor(
                 }
                 Log.w(TAG, "getCredentials: REST endpoint failed or empty (${restResponse.code()}), trying internal root endpoint...")
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Log.w(TAG, "getCredentials: REST endpoint exception, trying internal root endpoint...", e)
             }
 
@@ -388,6 +441,7 @@ class N8nRepository @Inject constructor(
                 }
                 Log.w(TAG, "getCredentials: Internal root endpoint failed (${internalResponse.code()}), falling back to Public API...")
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Log.w(TAG, "getCredentials: Internal root endpoint exception, falling back to Public API", e)
             }
 
@@ -435,8 +489,7 @@ class N8nRepository @Inject constructor(
                     } else {
                         // Erreur lors de la première requête
                         val response = lastResponse!!
-                        val errorBody = response.errorBody()?.string()
-                        Log.e(TAG, "getCredentials: Failed! Code=${response.code()}, Error=$errorBody")
+                        Log.e(TAG, "getCredentials: Failed! Code=${response.code()}")
                         
                         // Messages d'erreur plus explicites
                         val errorMessage = when (response.code()) {
@@ -446,13 +499,14 @@ class N8nRepository @Inject constructor(
                                    "Make sure your API key has the necessary scopes (credential:read) " +
                                    "or that your n8n plan allows it."
                             404 -> "Credentials endpoint not found. Check your n8n version."
-                            else -> "Error ${response.code()}: $errorBody"
+                            else -> "Error ${response.code()}: Unable to fetch credentials."
                         }
                         
                         Result.failure(Exception(errorMessage))
                     }
                 }
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Log.e(TAG, "getCredentials: Error during fetch", e)
                 
                 Result.failure(e)
@@ -471,6 +525,7 @@ class N8nRepository @Inject constructor(
                     return@withApiService Result.success(restResponse.body()!!.toCredential())
                 }
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Log.w(TAG, "getCredential: REST endpoint failed", e)
             }
 
@@ -481,6 +536,7 @@ class N8nRepository @Inject constructor(
                     return@withApiService Result.success(internalResponse.body()!!.toCredential())
                 }
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Log.w(TAG, "getCredential: Internal endpoint failed", e)
             }
 
@@ -517,7 +573,10 @@ class N8nRepository @Inject constructor(
             
             try {
                 // 1. Authentification pour récupérer le cookie
-                val loginService = apiServiceFactory.createWithCookie(instance.baseUrl, null)
+                val loginService = apiServiceFactory.createWithCookie(
+                    normalizeN8nBaseUrl(instance.baseUrl).getOrThrow(),
+                    null
+                )
                 val request = com.n8n.mobilemanager.data.remote.dto.LoginRequest(emailOrLdapLoginId = email.trim(), password = password)
                 
                 var loginResponse = loginService.login(request)
@@ -530,8 +589,7 @@ class N8nRepository @Inject constructor(
                 }
                 
                 if (!loginResponse.isSuccessful) {
-                    val errorBody = loginResponse.errorBody()?.string()
-                    Log.e(TAG, "getCredentialsWithLogin: Login failed: $errorBody")
+                    Log.e(TAG, "getCredentialsWithLogin: Login failed with code=${loginResponse.code()}")
                     return@withContext Result.failure(Exception("Login failed: ${loginResponse.code()} - Check your credentials"))
                 }
                 
@@ -541,7 +599,7 @@ class N8nRepository @Inject constructor(
                 val rawCookie = cookies.find { it.contains("n8n-auth") }
                 
                 if (rawCookie == null) {
-                    Log.e(TAG, "getCredentialsWithLogin: Cookie not found. Cookies=${cookies}")
+                    Log.e(TAG, "getCredentialsWithLogin: Cookie not found in ${cookies.size} Set-Cookie headers")
                     return@withContext Result.failure(Exception("Authentication cookie not found"))
                 }
                 
@@ -551,7 +609,10 @@ class N8nRepository @Inject constructor(
                 Log.d(TAG, "getCredentialsWithLogin: Cookie found and cleaned")
                 
                 // 3. Récupération des credentials avec le cookie
-                val authenticatedService = apiServiceFactory.createWithCookie(instance.baseUrl, authCookie)
+                val authenticatedService = apiServiceFactory.createWithCookie(
+                    normalizeN8nBaseUrl(instance.baseUrl).getOrThrow(),
+                    authCookie
+                )
                 
                 Log.d(TAG, "getCredentialsWithLogin: Fetching credentials with cookie...")
                 
@@ -602,6 +663,7 @@ class N8nRepository @Inject constructor(
                 }
                 
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Log.e(TAG, "getCredentialsWithLogin: Error", e)
                 Result.failure(e)
             }
@@ -641,6 +703,7 @@ class N8nRepository @Inject constructor(
                         statsPageCount++
                         Log.d(TAG, "getInstanceStats: Page $statsPageCount fetched, ${executions.size} items, total: ${allExecutions.size}")
                     } catch (e: Exception) {
+                        e.rethrowIfCancellation()
                         Log.w(TAG, "getInstanceStats: Error fetching page $statsPageCount, using data collected so far", e)
                         break
                     }
@@ -683,6 +746,7 @@ class N8nRepository @Inject constructor(
                     )
                 )
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Log.e(TAG, "getInstanceStats: Error", e)
                 Result.failure(e)
             }
@@ -721,6 +785,13 @@ class N8nRepository @Inject constructor(
                     val activeWorkflowsResponse = activeWorkflowsDeferred.await()
                     val (allExecutions, reachedEnd) = executionsDeferred.await()
                     
+                    if (!workflowsResponse.isSuccessful) {
+                        throw IllegalStateException("Failed to fetch workflows: ${workflowsResponse.code()}")
+                    }
+                    if (!activeWorkflowsResponse.isSuccessful) {
+                        throw IllegalStateException("Failed to fetch active workflows: ${activeWorkflowsResponse.code()}")
+                    }
+
                     val workflows = workflowsResponse.body()?.data ?: emptyList()
                     val activeWorkflows = activeWorkflowsResponse.body()?.data ?: emptyList()
                     
@@ -761,6 +832,7 @@ class N8nRepository @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Log.e(TAG, "getInstanceStatsOptimized: Error", e)
                 Result.failure(e)
             }
@@ -813,6 +885,7 @@ class N8nRepository @Inject constructor(
                 Log.d(TAG, "fetchExecutionsWithLimit: Page $pageCount fetched, ${executions.size} items, total: ${allExecutions.size}")
                 
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Log.w(TAG, "fetchExecutionsWithLimit: Error at page $pageCount", e)
                 break
             }
@@ -903,6 +976,7 @@ class N8nRepository @Inject constructor(
                                     id to null
                                 }
                             } catch (e: Exception) {
+                                e.rethrowIfCancellation()
                                 id to null
                             }
                         }
@@ -917,6 +991,7 @@ class N8nRepository @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Log.e(TAG, "enrichExecutionsWithWorkflowNames: Error fetching individual workflows", e)
                 executions
             }
@@ -953,6 +1028,7 @@ class N8nRepository @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Log.w(TAG, "enrichExecutionsWithWorkflowNames: Exception while fetching workflows", e)
                 executions
             }
@@ -962,19 +1038,20 @@ class N8nRepository @Inject constructor(
     private suspend fun <T> withApiService(block: suspend (N8nApiService) -> Result<T>): Result<T> {
         return withContext(Dispatchers.IO) {
             val instance = getActiveInstance()
-            Log.d(TAG, "withApiService: Active instance = $instance")
+            Log.d(TAG, "withApiService: Active instance id=${instance?.id}")
             
             if (instance == null) {
                 Log.e(TAG, "withApiService: No active instance configured!")
                 return@withContext Result.failure(Exception("No active instance configured"))
             }
             
-            Log.d(TAG, "withApiService: Using instance=${instance.name}, baseUrl=${instance.baseUrl}")
+            Log.d(TAG, "withApiService: Using instance id=${instance.id}")
             
             try {
                 val apiService = apiServiceFactory.create(instance)
                 block(apiService)
             } catch (e: Exception) {
+                e.rethrowIfCancellation()
                 Log.e(TAG, "withApiService: Exception occurred", e)
                 Result.failure(e)
             }

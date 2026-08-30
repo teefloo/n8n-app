@@ -1,32 +1,45 @@
 package com.n8n.mobilemanager.ui.screens.credentials
 
-import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.CalendarToday
-import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Key
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Update
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,12 +47,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.n8n.mobilemanager.data.model.Credential
 import com.n8n.mobilemanager.data.model.NodeAccess
+import com.n8n.mobilemanager.ui.components.EmptyState
+import com.n8n.mobilemanager.ui.components.LoadingState
+import com.n8n.mobilemanager.ui.components.N8nErrorBanner
+import com.n8n.mobilemanager.ui.components.N8nSectionHeader
+import com.n8n.mobilemanager.ui.components.N8nTopAppBar
 import com.n8n.mobilemanager.ui.components.NeumorphicCard
-import com.n8n.mobilemanager.ui.components.NeumorphicIconButton
-import com.n8n.mobilemanager.ui.theme.NeumorphicDimensions
-import com.n8n.mobilemanager.ui.components.neumorphicColors
 import com.n8n.mobilemanager.utils.DateUtils
-import java.util.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun CredentialDetailScreen(
@@ -48,206 +63,139 @@ fun CredentialDetailScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
-    val credential = remember(uiState.credentials, credentialId) {
-        uiState.credentials.find { it.id == credentialId }
-    }
+    val credential = uiState.currentCredential?.takeIf { it.id == credentialId }
+        ?: uiState.credentials.firstOrNull { it.id == credentialId }
+    val clipboardManager = LocalClipboardManager.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(credentialId) {
-        if (credentialId.isNotEmpty()) {
-            viewModel.loadCredential(credentialId)
-        }
+        if (credentialId.isNotBlank()) viewModel.loadCredential(credentialId)
     }
-    
-    val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopBar(
-                title = credential?.name ?: "Details",
-                onBackClick = onNavigateBack
+            N8nTopAppBar(
+                title = credential?.name ?: "Credential details",
+                onBack = onNavigateBack
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
-            if (credential != null) {
-                CredentialContent(
-                    credential = credential,
-                    onCopyId = {
-                        clipboardManager.setText(AnnotatedString(credential.id))
-                        Toast.makeText(context, "ID copied", Toast.LENGTH_SHORT).show()
+        when {
+            credentialId.isBlank() -> EmptyState(
+                icon = Icons.Outlined.ErrorOutline,
+                title = "Invalid credential",
+                message = "The credential ID is missing.",
+                modifier = Modifier.fillMaxSize().padding(paddingValues)
+            )
+            uiState.isLoading && credential == null -> LoadingState(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                message = "Loading credential…"
+            )
+            credential == null -> {
+                Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+                    uiState.error?.let { message ->
+                        N8nErrorBanner(message = message, modifier = Modifier.padding(20.dp))
                     }
-                )
-            } else if (uiState.isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            } else {
-                // Not found
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Outlined.Info,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.tertiary
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Credential not found",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TopBar(title: String, onBackClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        NeumorphicIconButton(
-            icon = Icons.AutoMirrored.Filled.ArrowBack,
-            onClick = onBackClick,
-            size = 44.dp,
-            iconSize = 22.dp
-        )
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-private fun CredentialContent(
-    credential: Credential,
-    onCopyId: () -> Unit
-) {
-    LazyColumn(
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Main Info Card
-        item {
-            CredentialMainInfo(credential)
-        }
-        
-        // Dates
-        item {
-            CredentialDates(credential)
-        }
-
-        // Used By (Node Access)
-        if (credential.nodesAccess.isNotEmpty()) {
-            item {
-                Text(
-                    text = "Used by",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-                )
-            }
-            items(credential.nodesAccess) { nodeAccess ->
-                NodeAccessCard(nodeAccess)
-            }
-        }
-        
-        // Technical ID
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                TextButton(onClick = onCopyId) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                    EmptyState(
+                        icon = Icons.Outlined.ErrorOutline,
+                        title = "Credential not found",
+                        message = "It may have been removed or you may not have access.",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        action = {
+                            TextButton(onClick = { viewModel.loadCredential(credentialId) }) {
+                                Text("Try again")
+                            }
+                        }
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("COPY ID: ${credential.id.take(8)}...")
                 }
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            else -> {
+                credential?.let { loadedCredential ->
+                    Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+                        uiState.error?.let { message ->
+                            N8nErrorBanner(message = message, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+                        }
+                        CredentialContent(
+                            credential = loadedCredential,
+                            onCopyId = {
+                                clipboardManager.setText(AnnotatedString(loadedCredential.id))
+                                scope.launch { snackbarHostState.showSnackbar("Credential ID copied") }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CredentialContent(credential: Credential, onCopyId: () -> Unit) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item { CredentialMainInfo(credential) }
+        item { CredentialDates(credential) }
+        if (credential.nodesAccess.isNotEmpty()) {
+            item { N8nSectionHeader(title = "Used by") }
+            items(credential.nodesAccess) { nodeAccess -> NodeAccessCard(nodeAccess) }
+        }
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                TextButton(onClick = onCopyId) {
+                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Copy ID · ${credential.id.take(8)}…")
+                }
+            }
         }
     }
 }
 
 @Composable
 private fun CredentialMainInfo(credential: Credential) {
-    val colors = neumorphicColors()
-    
-    NeumorphicCard(
-        modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 20.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
+    NeumorphicCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(
-                verticalAlignment = Alignment.Top,
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                verticalAlignment = Alignment.Top
             ) {
-                // Icon
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(colors.primary.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Key,
                         contentDescription = null,
-                        modifier = Modifier.size(32.dp),
-                        tint = colors.primary
+                        modifier = Modifier.padding(14.dp).size(28.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
-                
-                // Type badge
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(colors.background)
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         text = formatCredentialType(credential.type),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = colors.primary
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        style = MaterialTheme.typography.labelMedium
                     )
                 }
             }
-            
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Name",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = colors.onSurfaceVariant
-                )
-                Text(
-                    text = credential.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Name", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(credential.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -255,125 +203,66 @@ private fun CredentialMainInfo(credential: Credential) {
 
 @Composable
 private fun CredentialDates(credential: Credential) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Created At
-        Box(modifier = Modifier.weight(1f)) {
-            DetailSmallCard(
-                label = "Created on",
-                value = DateUtils.formatFullDate(credential.createdAt),
-                icon = Icons.Outlined.CalendarToday
-            )
-        }
-        
-        // Updated At
-        Box(modifier = Modifier.weight(1f)) {
-            DetailSmallCard(
-                label = "Updated on",
-                value = DateUtils.formatFullDate(credential.updatedAt),
-                icon = Icons.Outlined.Update
-            )
-        }
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        DetailSmallCard(
+            modifier = Modifier.weight(1f),
+            label = "Created",
+            value = DateUtils.formatFullDate(credential.createdAt),
+            icon = Icons.Outlined.CalendarToday
+        )
+        DetailSmallCard(
+            modifier = Modifier.weight(1f),
+            label = "Updated",
+            value = DateUtils.formatFullDate(credential.updatedAt),
+            icon = Icons.Outlined.Update
+        )
     }
 }
 
 @Composable
 private fun DetailSmallCard(
+    modifier: Modifier,
     label: String,
     value: String,
-    icon: ImageVector
+    icon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
-    NeumorphicCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant // corrected
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+    NeumorphicCard(modifier = modifier, cornerRadius = 14.dp) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold
-            )
+            Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
 
 @Composable
 private fun NodeAccessCard(nodeAccess: NodeAccess) {
-    NeumorphicCard(
-        modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 12.dp
-    ) {
+    NeumorphicCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 14.dp) {
         Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.AccountTree,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-                
-                Column {
-                    Text(
-                        text = formatCredentialType(nodeAccess.nodeType),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    if (nodeAccess.date != null) {
-                        Text(
-                            text = DateUtils.formatFullDate(nodeAccess.date),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+            Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(10.dp)) {
+                Icon(Icons.Outlined.AccountTree, contentDescription = null, modifier = Modifier.padding(10.dp).size(20.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(formatCredentialType(nodeAccess.nodeType), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                nodeAccess.date?.let {
+                    Text(DateUtils.formatFullDate(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
     }
 }
 
-// Utils (Duplicated from CredentialsScreen for isolation)
-private fun formatCredentialType(type: String): String {
-    return type
-        .split(Regex("(?=[A-Z])"))
-        .joinToString(" ")
-        .trim()
-        .replace("Api", "API")
-        .replace("Oauth2", "OAuth 2.0")
-        .replace(" My Sql", " MySQL")
-        .replace(" Ai", " AI")
-        .replace("n8n", "n8n") // Ensure case
-}
+private fun formatCredentialType(type: String): String = type
+    .split(Regex("(?=[A-Z])"))
+    .joinToString(" ")
+    .trim()
+    .replace("Api", "API")
+    .replace("Oauth2", "OAuth 2.0")
+    .replace(" My Sql", " MySQL")
+    .replace(" Ai", " AI")

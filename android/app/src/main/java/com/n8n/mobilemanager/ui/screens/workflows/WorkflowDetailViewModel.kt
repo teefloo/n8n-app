@@ -8,7 +8,11 @@ import com.n8n.mobilemanager.data.model.ExecutionStatus
 import com.n8n.mobilemanager.data.model.Workflow
 import com.n8n.mobilemanager.data.repository.N8nRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -33,6 +37,9 @@ class WorkflowDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(WorkflowDetailUiState())
     val uiState: StateFlow<WorkflowDetailUiState> = _uiState.asStateFlow()
 
+    private var loadJob: Job? = null
+    private var toggleJob: Job? = null
+
     init {
         if (workflowId.isNotEmpty()) {
             loadWorkflowDetails()
@@ -41,25 +48,28 @@ class WorkflowDetailViewModel @Inject constructor(
         }
     }
 
-    fun loadWorkflowDetails() {
-        viewModelScope.launch {
+    fun loadWorkflowDetails(forceRefresh: Boolean = false) {
+        if (loadJob?.isActive == true) {
+            if (!forceRefresh) return
+            loadJob?.cancel()
+        }
+        if (toggleJob?.isActive == true) return
+
+        loadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            
-            // Charger le workflow
+
             val workflowResult = repository.getWorkflow(workflowId)
-            
+
             workflowResult.fold(
                 onSuccess = { workflow ->
                     _uiState.update { it.copy(workflow = workflow) }
-                    
-                    // Charger les exécutions récentes pour ce workflow
                     loadRecentExecutions()
                 },
                 onFailure = { error ->
                     _uiState.update { 
                         it.copy(
                             isLoading = false,
-                            error = error.message ?: "Error loading workflow"
+                            error = error.message ?: "Unable to load workflow"
                         )
                     }
                 }
@@ -85,6 +95,7 @@ class WorkflowDetailViewModel @Inject constructor(
                     it.copy(
                         isLoading = false,
                         recentExecutions = executions.take(10),
+                        error = null,
                         successCount = successCount,
                         errorCount = errorCount
                     )
@@ -94,7 +105,7 @@ class WorkflowDetailViewModel @Inject constructor(
                 _uiState.update { 
                     it.copy(
                         isLoading = false,
-                        error = error.message
+                        error = error.message ?: "Unable to load recent executions"
                     )
                 }
             }
@@ -103,8 +114,9 @@ class WorkflowDetailViewModel @Inject constructor(
 
     fun toggleWorkflowActive() {
         val workflow = _uiState.value.workflow ?: return
-        
-        viewModelScope.launch {
+        if (toggleJob?.isActive == true || loadJob?.isActive == true) return
+
+        toggleJob = viewModelScope.launch {
             _uiState.update { it.copy(isTogglingActive = true) }
             
             val result = if (workflow.active) {
@@ -118,14 +130,15 @@ class WorkflowDetailViewModel @Inject constructor(
                     _uiState.update { state ->
                         state.copy(
                             workflow = state.workflow?.copy(active = newActiveState),
-                            isTogglingActive = false
+                            isTogglingActive = false,
+                            error = null
                         )
                     }
                 },
                 onFailure = { error ->
                     _uiState.update { 
                         it.copy(
-                            error = "Failed: ${error.message}",
+                            error = "Unable to update workflow: ${error.message ?: "Try again"}",
                             isTogglingActive = false
                         )
                     }

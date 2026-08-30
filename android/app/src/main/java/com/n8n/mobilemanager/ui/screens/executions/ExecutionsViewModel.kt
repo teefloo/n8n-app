@@ -8,16 +8,18 @@ import com.n8n.mobilemanager.data.model.ExecutionStatus
 import com.n8n.mobilemanager.data.model.Workflow
 import com.n8n.mobilemanager.data.repository.N8nRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "ExecutionsViewModel"
 
-/**
- * Cache des exécutions avec timestamp d'expiration
- */
 data class CachedExecutions(
     val executions: List<Execution>,
     val workflows: List<Workflow>,
@@ -26,30 +28,24 @@ data class CachedExecutions(
     val workflowFilter: String?,
     val statusFilter: ExecutionStatus?
 ) {
-    companion object {
-        // Cache valide pendant 1 minute
-        private const val CACHE_DURATION_MS = 60 * 1000L
-    }
-    
-    fun isValid(workflowId: String?, status: ExecutionStatus?): Boolean {
-        return System.currentTimeMillis() - timestamp < CACHE_DURATION_MS &&
-               workflowFilter == workflowId &&
-               statusFilter == status
-    }
+    fun isValid(workflowId: String?, status: ExecutionStatus?): Boolean =
+        System.currentTimeMillis() - timestamp < 60 * 1000L &&
+            workflowFilter == workflowId && statusFilter == status
 }
 
 data class ExecutionsUiState(
     val isLoading: Boolean = true,
     val isLoadingMore: Boolean = false,
-    val isRefreshing: Boolean = false, // Chargement en arrière-plan
+    val isRefreshing: Boolean = false,
     val error: String? = null,
-    val executions: List<Execution> = emptyList(), // Accumulates all loaded executions
-    val filteredExecutions: List<Execution> = emptyList(), // Same as executions in this context (filters are applied API side)
+    val executions: List<Execution> = emptyList(),
+    val filteredExecutions: List<Execution> = emptyList(),
     val workflows: List<Workflow> = emptyList(),
     val selectedWorkflowId: String? = null,
     val selectedStatus: ExecutionStatus? = null,
     val nextCursor: String? = null,
-    val lastRefreshTime: Long = 0
+    val lastRefreshTime: Long = 0,
+    val actionExecutionId: String? = null
 )
 
 @HiltViewModel
@@ -57,245 +53,170 @@ class ExecutionsViewModel @Inject constructor(
     private val repository: N8nRepository
 ) : ViewModel() {
 
-    companion object {
-        // Cache statique partagé entre toutes les instances du ViewModel
-        private var cachedData: CachedExecutions? = null
-        private var cachedWorkflows: List<Workflow>? = null
-        private var workflowsCacheTime: Long = 0
-        private const val WORKFLOWS_CACHE_DURATION_MS = 2 * 60 * 1000L // 2 minutes
-    }
+    private var cachedData: CachedExecutions? = null
+    private var cachedWorkflows: List<Workflow>? = null
+    private var workflowsCacheTime: Long = 0
+    private var loadJob: Job? = null
+    private var requestToken = 0L
 
     private val _uiState = MutableStateFlow(ExecutionsUiState())
     val uiState: StateFlow<ExecutionsUiState> = _uiState.asStateFlow()
 
     init {
-        // Restaurer depuis le cache si disponible
-        val cached = cachedData
-        if (cached != null && cached.isValid(null, null)) {
-            Log.d(TAG, "init: Restoring ${cached.executions.size} executions from cache")
-            _uiState.value = ExecutionsUiState(
-                isLoading = false,
-                isRefreshing = true,
-                executions = cached.executions,
-                filteredExecutions = cached.executions,
-                workflows = cached.workflows,
-                nextCursor = cached.nextCursor,
-                lastRefreshTime = cached.timestamp
-            )
-            // Rafraîchir en arrière-plan
-            refreshInBackground()
-        } else {
-            loadData()
-        }
+        loadData()
     }
 
-    /**
-     * Rafraîchissement manuel (pull-to-refresh)
-     */
     fun refresh() {
         loadData(forceRefresh = true)
     }
 
     fun loadData(forceRefresh: Boolean = false) {
-        viewModelScope.launch {
-            val state = _uiState.value
-            
-            // Vérifier le cache si ce n'est pas un refresh forcé
+        if (loadJob?.isActive == true) {
+            if (!forceRefresh) return
+            loadJob?.cancel()
+        }
+
+        val token = ++requestToken
+        loadJob = viewModelScope.launch {
+            val requestedWorkflow = _uiState.value.selectedWorkflowId
+            val requestedStatus = _uiState.value.selectedStatus
+
             if (!forceRefresh) {
-                val cached = cachedData
-                if (cached != null && cached.isValid(state.selectedWorkflowId, state.selectedStatus)) {
-                    Log.d(TAG, "loadData: Using cached data (${cached.executions.size} executions)")
-                    _uiState.update { 
+                cachedData?.takeIf { it.isValid(requestedWorkflow, requestedStatus) }?.let { cached ->
+                    _uiState.update {
                         it.copy(
-                            isLoading = false,
                             executions = cached.executions,
                             filteredExecutions = cached.executions,
                             workflows = cached.workflows,
-                            nextCursor = cached.nextCursor
+                            nextCursor = cached.nextCursor,
+                            isLoading = false,
+                            isRefreshing = false,
+                            lastRefreshTime = cached.timestamp
                         )
                     }
                     return@launch
                 }
             }
-            
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            
-            Log.d(TAG, "loadData: Starting parallel load...")
-            val startTime = System.currentTimeMillis()
-            
-            // Charger workflows et exécutions en parallèle
-            val workflowsDeferred = async {
-                // Utiliser le cache des workflows si valide
-                val cached = cachedWorkflows
-                if (cached != null && System.currentTimeMillis() - workflowsCacheTime < WORKFLOWS_CACHE_DURATION_MS) {
-                    Log.d(TAG, "loadData: Using cached workflows")
-                    Result.success(cached)
-                } else {
-                    repository.getWorkflows()
-                }
-            }
-            
-            val executionsDeferred = async {
-                repository.getExecutionsPage(
-                    workflowId = state.selectedWorkflowId,
-                    status = state.selectedStatus,
-                    limit = 30, // Charger plus d'items initialement
-                    cursor = null
+
+            val hasData = _uiState.value.executions.isNotEmpty()
+            _uiState.update {
+                it.copy(
+                    isLoading = !hasData,
+                    isRefreshing = hasData,
+                    isLoadingMore = false,
+                    nextCursor = null,
+                    error = null
                 )
             }
-            
-            // Attendre les résultats
-            val workflowsResult = workflowsDeferred.await()
-            val executionsResult = executionsDeferred.await()
-            
-            val elapsed = System.currentTimeMillis() - startTime
-            Log.d(TAG, "loadData: Parallel load completed in ${elapsed}ms")
-            
-            // Traiter les workflows
-            val workflows = workflowsResult.fold(
-                onSuccess = { workflows ->
-                    cachedWorkflows = workflows
-                    workflowsCacheTime = System.currentTimeMillis()
-                    workflows
-                },
-                onFailure = { cachedWorkflows ?: emptyList() }
-            )
-            
-            // Traiter les exécutions
-            executionsResult.fold(
-                onSuccess = { page ->
-                    Log.d(TAG, "loadData: Loaded ${page.executions.size} executions")
-                    
-                    // Mettre en cache
-                    cachedData = CachedExecutions(
-                        executions = page.executions,
-                        workflows = workflows,
-                        nextCursor = page.nextCursor,
-                        timestamp = System.currentTimeMillis(),
-                        workflowFilter = state.selectedWorkflowId,
-                        statusFilter = state.selectedStatus
-                    )
-                    
-                    _uiState.update { 
-                        it.copy(
-                            executions = page.executions,
-                            filteredExecutions = page.executions,
-                            workflows = workflows,
-                            nextCursor = page.nextCursor,
-                            isLoading = false,
-                            isRefreshing = false,
-                            lastRefreshTime = System.currentTimeMillis()
+
+            try {
+                val (workflowsResult, executionsResult) = coroutineScope {
+                    val workflowsDeferred = async {
+                        val cached = cachedWorkflows
+                        if (cached != null && System.currentTimeMillis() - workflowsCacheTime < 2 * 60 * 1000L) {
+                            Result.success(cached)
+                        } else {
+                            repository.getWorkflows()
+                        }
+                    }
+                    val executionsDeferred = async {
+                        repository.getExecutionsPage(
+                            workflowId = requestedWorkflow,
+                            status = requestedStatus,
+                            limit = 30
                         )
                     }
-                },
-                onFailure = { error ->
-                    Log.e(TAG, "loadData: Failed to load executions", error)
-                    _uiState.update { 
-                        it.copy(
-                            workflows = workflows,
-                            error = error.message,
-                            isLoading = false,
-                            isRefreshing = false
-                        )
+                    workflowsDeferred.await() to executionsDeferred.await()
+                }
+
+                if (token != requestToken) return@launch
+
+                val workflows = workflowsResult.getOrElse {
+                    _uiState.value.workflows
+                }.also {
+                    if (workflowsResult.isSuccess) {
+                        cachedWorkflows = it
+                        workflowsCacheTime = System.currentTimeMillis()
                     }
                 }
-            )
-        }
-    }
-    
-    /**
-     * Rafraîchit les données en arrière-plan sans bloquer l'UI
-     */
-    private fun refreshInBackground() {
-        viewModelScope.launch {
-            Log.d(TAG, "refreshInBackground: Starting background refresh...")
-            
-            val state = _uiState.value
-            
-            val workflowsDeferred = async {
-                repository.getWorkflows()
-            }
-            
-            val executionsDeferred = async {
-                repository.getExecutionsPage(
-                    workflowId = state.selectedWorkflowId,
-                    status = state.selectedStatus,
-                    limit = 30,
-                    cursor = null
+
+                executionsResult.fold(
+                    onSuccess = { page ->
+                        val timestamp = System.currentTimeMillis()
+                        cachedData = CachedExecutions(
+                            executions = page.executions,
+                            workflows = workflows,
+                            nextCursor = page.nextCursor,
+                            timestamp = timestamp,
+                            workflowFilter = requestedWorkflow,
+                            statusFilter = requestedStatus
+                        )
+                        _uiState.update {
+                            it.copy(
+                                executions = page.executions,
+                                filteredExecutions = page.executions,
+                                workflows = workflows,
+                                nextCursor = page.nextCursor,
+                                isLoading = false,
+                                isRefreshing = false,
+                                error = null,
+                                lastRefreshTime = timestamp
+                            )
+                        }
+                    },
+                    onFailure = { error ->
+                        _uiState.update {
+                            it.copy(
+                                workflows = workflows,
+                                isLoading = false,
+                                isRefreshing = false,
+                                error = error.toUserMessage("Unable to load executions")
+                            )
+                        }
+                    }
                 )
-            }
-            
-            val workflowsResult = workflowsDeferred.await()
-            val executionsResult = executionsDeferred.await()
-            
-            val workflows = workflowsResult.fold(
-                onSuccess = { workflows ->
-                    cachedWorkflows = workflows
-                    workflowsCacheTime = System.currentTimeMillis()
-                    workflows
-                },
-                onFailure = { state.workflows }
-            )
-            
-            executionsResult.fold(
-                onSuccess = { page ->
-                    Log.d(TAG, "refreshInBackground: Updated with ${page.executions.size} executions")
-                    
-                    cachedData = CachedExecutions(
-                        executions = page.executions,
-                        workflows = workflows,
-                        nextCursor = page.nextCursor,
-                        timestamp = System.currentTimeMillis(),
-                        workflowFilter = state.selectedWorkflowId,
-                        statusFilter = state.selectedStatus
-                    )
-                    
-                    _uiState.update { 
+            } catch (error: Exception) {
+                Log.e(TAG, "loadData: Failed", error)
+                if (token == requestToken) {
+                    _uiState.update {
                         it.copy(
-                            executions = page.executions,
-                            filteredExecutions = page.executions,
-                            workflows = workflows,
-                            nextCursor = page.nextCursor,
+                            isLoading = false,
                             isRefreshing = false,
-                            lastRefreshTime = System.currentTimeMillis()
+                            error = error.toUserMessage("Unable to load executions")
                         )
                     }
-                },
-                onFailure = {
-                    _uiState.update { it.copy(isRefreshing = false) }
                 }
-            )
+            }
         }
     }
 
     fun loadNextPage() {
         val state = _uiState.value
-        if (state.isLoading || state.isLoadingMore || state.nextCursor == null) return
-        
+        val cursor = state.nextCursor ?: return
+        if (state.isLoading || state.isLoadingMore) return
+        val token = requestToken
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMore = true) }
-            
             repository.getExecutionsPage(
                 workflowId = state.selectedWorkflowId,
                 status = state.selectedStatus,
                 limit = 20,
-                cursor = state.nextCursor
+                cursor = cursor
             ).fold(
                 onSuccess = { page ->
-                    val newExecutions = state.executions + page.executions
-                    
-                    // Mettre à jour le cache
-                    cachedData = CachedExecutions(
-                        executions = newExecutions,
-                        workflows = state.workflows,
-                        nextCursor = page.nextCursor,
-                        timestamp = System.currentTimeMillis(),
-                        workflowFilter = state.selectedWorkflowId,
-                        statusFilter = state.selectedStatus
-                    )
-                    
-                    _uiState.update { currentState ->
-                        currentState.copy(
+                    _uiState.update { current ->
+                        if (token != requestToken || current.nextCursor != cursor) {
+                            return@update current.copy(isLoadingMore = false)
+                        }
+                        val ids = current.executions.asSequence().map { it.id }.toHashSet()
+                        val newExecutions = current.executions + page.executions.filterNot { it.id in ids }
+                        cachedData = cachedData?.copy(
+                            executions = newExecutions,
+                            nextCursor = page.nextCursor,
+                            timestamp = System.currentTimeMillis()
+                        )
+                        current.copy(
                             executions = newExecutions,
                             filteredExecutions = newExecutions,
                             nextCursor = page.nextCursor,
@@ -304,11 +225,10 @@ class ExecutionsViewModel @Inject constructor(
                     }
                 },
                 onFailure = { error ->
-                    _uiState.update { 
-                        it.copy(
-                            error = error.message,
-                            isLoadingMore = false
-                        )
+                    if (token == requestToken) {
+                        _uiState.update {
+                            it.copy(isLoadingMore = false, error = error.toUserMessage("Unable to load more executions"))
+                        }
                     }
                 }
             )
@@ -316,73 +236,54 @@ class ExecutionsViewModel @Inject constructor(
     }
 
     fun setWorkflowFilter(workflowId: String?) {
-        val currentFilter = _uiState.value.selectedWorkflowId
-        if (currentFilter == workflowId) return
-        
-        // Invalider le cache car le filtre change
+        if (_uiState.value.selectedWorkflowId == workflowId) return
+        _uiState.update { it.copy(selectedWorkflowId = workflowId, nextCursor = null) }
         cachedData = null
-        
-        viewModelScope.launch {
-            _uiState.update { 
-                it.copy(
-                    selectedWorkflowId = workflowId, 
-                    isLoading = true,
-                    nextCursor = null
-                ) 
-            }
-            loadData(forceRefresh = true)
-        }
+        loadData(forceRefresh = true)
     }
 
     fun setStatusFilter(status: ExecutionStatus?) {
-        val currentFilter = _uiState.value.selectedStatus
-        if (currentFilter == status) return
-        
-        // Invalider le cache car le filtre change
+        if (_uiState.value.selectedStatus == status) return
+        _uiState.update { it.copy(selectedStatus = status, nextCursor = null) }
         cachedData = null
-        
-        viewModelScope.launch {
-            _uiState.update { 
-                it.copy(
-                    selectedStatus = status, 
-                    isLoading = true,
-                    nextCursor = null
-                ) 
-            }
-            loadData(forceRefresh = true)
-        }
+        loadData(forceRefresh = true)
     }
 
     fun retryExecution(executionId: String) {
-        viewModelScope.launch {
-            repository.retryExecution(executionId).fold(
-                onSuccess = {
-                    // Invalider le cache et recharger
-                    cachedData = null
-                    loadData(forceRefresh = true)
-                },
-                onFailure = { error ->
-                    _uiState.update { it.copy(error = "Failed: ${error.message}") }
-                }
-            )
-        }
+        performAction(executionId) { repository.retryExecution(executionId) }
     }
 
     fun stopExecution(executionId: String) {
-        viewModelScope.launch {
-            repository.stopExecution(executionId).fold(
-                onSuccess = {
-                    cachedData = null
-                    loadData(forceRefresh = true)
-                },
-                onFailure = { error ->
-                    _uiState.update { it.copy(error = "Failed: ${error.message}") }
-                }
-            )
-        }
+        performAction(executionId) { repository.stopExecution(executionId) }
     }
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }
+
+    private fun performAction(executionId: String, action: suspend () -> Result<Execution>) {
+        if (_uiState.value.actionExecutionId != null) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(actionExecutionId = executionId, error = null) }
+            action().fold(
+                onSuccess = {
+                    _uiState.update { it.copy(actionExecutionId = null) }
+                    cachedData = null
+                    loadData(forceRefresh = true)
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            actionExecutionId = null,
+                            error = error.toUserMessage("Unable to update execution")
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    private fun Throwable.toUserMessage(fallback: String): String = message
+        ?.takeIf { it.isNotBlank() }
+        ?: fallback
 }

@@ -65,7 +65,7 @@
 ## 🛡️ Security
 
 Your data security is paramount:
-- All API keys and credentials are stored locally using **EncryptedSharedPreferences** (Android) and **Keychain** (iOS).
+- On Android, login credentials and n8n API keys are encrypted locally with **Android Keystore**. The app communicates directly with your n8n instance; secrets are not sent to a middle-man service.
 - The app communicates directly with your n8n instance; no middle-man servers are involved.
 
 ## 📄 License

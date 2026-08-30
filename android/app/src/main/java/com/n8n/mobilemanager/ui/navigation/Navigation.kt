@@ -1,135 +1,83 @@
 package com.n8n.mobilemanager.ui.navigation
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.automirrored.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.AccountTree
+import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Login
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.n8n.mobilemanager.ui.components.neumorphicRaised
-import com.n8n.mobilemanager.ui.components.neumorphicColors
-import com.n8n.mobilemanager.data.repository.N8nRepository
+import androidx.navigation.navArgument
+import com.n8n.mobilemanager.ui.screens.credentials.CredentialDetailScreen
 import com.n8n.mobilemanager.ui.screens.credentials.CredentialsScreen
 import com.n8n.mobilemanager.ui.screens.dashboard.DashboardScreen
-import com.n8n.mobilemanager.ui.screens.executions.ExecutionsScreen
 import com.n8n.mobilemanager.ui.screens.executions.ExecutionDetailScreen
+import com.n8n.mobilemanager.ui.screens.executions.ExecutionsScreen
 import com.n8n.mobilemanager.ui.screens.login.LoginScreen
 import com.n8n.mobilemanager.ui.screens.settings.SettingsScreen
 import com.n8n.mobilemanager.ui.screens.workflows.WorkflowDetailScreen
 import com.n8n.mobilemanager.ui.screens.workflows.WorkflowsScreen
-import com.n8n.mobilemanager.ui.theme.*
 
-/**
- * Routes de navigation
- */
 sealed class Screen(
     val route: String,
     val title: String,
-    val iconOutlined: ImageVector,
-    val iconFilled: ImageVector
+    val iconOutlined: androidx.compose.ui.graphics.vector.ImageVector,
+    val iconFilled: androidx.compose.ui.graphics.vector.ImageVector
 ) {
-    object Login : Screen(
-        route = "login",
-        title = "Login",
-        iconOutlined = Icons.AutoMirrored.Outlined.Login,
-        iconFilled = Icons.AutoMirrored.Filled.Login
-    )
-    
-    object Dashboard : Screen(
-        route = "dashboard",
-        title = "Dashboard",
-        iconOutlined = Icons.Outlined.Dashboard,
-        iconFilled = Icons.Filled.Dashboard
-    )
-    
-    object Workflows : Screen(
-        route = "workflows",
-        title = "Workflows",
-        iconOutlined = Icons.Outlined.AccountTree,
-        iconFilled = Icons.Filled.AccountTree
-    )
-    
-    object Executions : Screen(
-        route = "executions",
-        title = "Executions",
-        iconOutlined = Icons.Outlined.History,
-        iconFilled = Icons.Filled.History
-    )
-    
-    object Credentials : Screen(
-        route = "credentials",
-        title = "Credentials",
-        iconOutlined = Icons.Outlined.Key,
-        iconFilled = Icons.Filled.Key
-    )
-    
-    object Settings : Screen(
-        route = "settings",
-        title = "Settings",
-        iconOutlined = Icons.Outlined.Settings,
-        iconFilled = Icons.Filled.Settings
-    )
-    
-    // Detail screens
-    object WorkflowDetail : Screen(
-        route = "workflow/{workflowId}",
-        title = "Workflow detail",
-        iconOutlined = Icons.Outlined.AccountTree,
-        iconFilled = Icons.Filled.AccountTree
-    ) {
+    object Login : Screen("login", "Login", Icons.AutoMirrored.Outlined.Login, Icons.AutoMirrored.Filled.Login)
+    object Dashboard : Screen("dashboard", "Dashboard", Icons.Outlined.Dashboard, Icons.Filled.Dashboard)
+    object Workflows : Screen("workflows", "Workflows", Icons.Outlined.AccountTree, Icons.Filled.AccountTree)
+    object Executions : Screen("executions", "Executions", Icons.Outlined.History, Icons.Filled.History)
+    object Credentials : Screen("credentials", "Credentials", Icons.Outlined.Key, Icons.Filled.Key)
+    object Settings : Screen("settings", "Settings", Icons.Outlined.Settings, Icons.Filled.Settings)
+
+    object WorkflowDetail : Screen("workflow/{workflowId}", "Workflow detail", Icons.Outlined.AccountTree, Icons.Filled.AccountTree) {
         fun createRoute(workflowId: String) = "workflow/$workflowId"
     }
-    
-    object ExecutionDetail : Screen(
-        route = "execution/{executionId}",
-        title = "Execution detail",
-        iconOutlined = Icons.Outlined.History,
-        iconFilled = Icons.Filled.History
-    ) {
+
+    object ExecutionDetail : Screen("execution/{executionId}", "Execution detail", Icons.Outlined.History, Icons.Filled.History) {
         fun createRoute(executionId: String) = "execution/$executionId"
     }
-    
-    object CredentialDetail : Screen(
-        route = "credential/{credentialId}",
-        title = "Credential detail",
-        iconOutlined = Icons.Outlined.Key,
-        iconFilled = Icons.Filled.Key
-    ) {
+
+    object CredentialDetail : Screen("credential/{credentialId}", "Credential detail", Icons.Outlined.Key, Icons.Filled.Key) {
         fun createRoute(credentialId: String) = "credential/$credentialId"
     }
 }
 
-/**
- * Écrans affichés dans la barre de navigation
- */
 val bottomNavScreens = listOf(
     Screen.Dashboard,
     Screen.Workflows,
@@ -137,345 +85,206 @@ val bottomNavScreens = listOf(
     Screen.Credentials
 )
 
-/**
- * Composable principal de navigation
- */
+@androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun N8nNavigation(
     navController: NavHostController = rememberNavController()
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    
-    // Determine if bottom nav should be visible
-    val showBottomNav = bottomNavScreens.any { it.route == currentRoute }
-    
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            if (showBottomNav) {
-                NeumorphicBottomNavBar(
+    val showPrimaryNavigation = bottomNavScreens.any { it.route == currentRoute }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val useRail = showPrimaryNavigation && maxWidth >= 600.dp
+
+        Row(modifier = Modifier.fillMaxSize()) {
+            if (useRail) {
+                AppNavigationRail(navController = navController, currentRoute = currentRoute)
+            }
+
+            Scaffold(
+                modifier = Modifier.weight(1f),
+                containerColor = MaterialTheme.colorScheme.background,
+                bottomBar = {
+                    if (showPrimaryNavigation && !useRail) {
+                        AppNavigationBar(navController = navController, currentRoute = currentRoute)
+                    }
+                }
+            ) { paddingValues ->
+                NavHost(
                     navController = navController,
-                    currentRoute = currentRoute
-                )
-            }
-        }
-    ) { paddingValues ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Login.route,
-            modifier = Modifier.padding(top = paddingValues.calculateTopPadding()),
-            enterTransition = {
-                // Déterminer la direction en fonction de l'ordre des écrans
-                val fromIndex = bottomNavScreens.indexOfFirst { it.route == initialState.destination.route }
-                val toIndex = bottomNavScreens.indexOfFirst { it.route == targetState.destination.route }
-                val direction = if (fromIndex != -1 && toIndex != -1 && toIndex < fromIndex) {
-                    AnimatedContentTransitionScope.SlideDirection.End // Aller vers la gauche = slide depuis la droite
-                } else {
-                    AnimatedContentTransitionScope.SlideDirection.Start // Aller vers la droite = slide depuis la gauche
+                    startDestination = Screen.Login.route,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    enterTransition = { fadeIn(tween(180)) },
+                    exitTransition = { fadeOut(tween(120)) },
+                    popEnterTransition = { fadeIn(tween(180)) },
+                    popExitTransition = { fadeOut(tween(120)) }
+                ) {
+                    composable(Screen.Login.route) {
+                        LoginScreen(
+                            onLoginSuccess = {
+                                navController.navigate(Screen.Dashboard.route) {
+                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
+                        )
+                    }
+
+                    composable(Screen.Dashboard.route) {
+                        DashboardScreen(
+                            onNavigateToWorkflows = { navController.navigate(Screen.Workflows.route) },
+                            onNavigateToExecutions = { navController.navigate(Screen.Executions.route) },
+                            onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                            onNavigateToExecution = { id ->
+                                navController.navigate(Screen.ExecutionDetail.createRoute(id))
+                            }
+                        )
+                    }
+
+                    composable(Screen.Workflows.route) {
+                        WorkflowsScreen(
+                            onNavigateToWorkflow = { id ->
+                                navController.navigate(Screen.WorkflowDetail.createRoute(id))
+                            },
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(
+                        route = Screen.WorkflowDetail.route,
+                        arguments = listOf(navArgument("workflowId") { type = NavType.StringType })
+                    ) {
+                        WorkflowDetailScreen(
+                            onNavigateBack = { navController.popBackStack() },
+                            onNavigateToExecution = { id ->
+                                navController.navigate(Screen.ExecutionDetail.createRoute(id))
+                            }
+                        )
+                    }
+
+                    composable(Screen.Executions.route) {
+                        ExecutionsScreen(
+                            onNavigateToExecution = { id ->
+                                navController.navigate(Screen.ExecutionDetail.createRoute(id))
+                            },
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(
+                        route = Screen.ExecutionDetail.route,
+                        arguments = listOf(navArgument("executionId") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        ExecutionDetailScreen(
+                            executionId = backStackEntry.arguments?.getString("executionId").orEmpty(),
+                            onNavigateBack = { navController.popBackStack() },
+                            onNavigateToExecution = { id ->
+                                navController.navigate(Screen.ExecutionDetail.createRoute(id))
+                            }
+                        )
+                    }
+
+                    composable(Screen.Credentials.route) {
+                        CredentialsScreen(
+                            onNavigateToCredential = { id ->
+                                navController.navigate(Screen.CredentialDetail.createRoute(id))
+                            },
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(
+                        route = Screen.CredentialDetail.route,
+                        arguments = listOf(navArgument("credentialId") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        CredentialDetailScreen(
+                            credentialId = backStackEntry.arguments?.getString("credentialId").orEmpty(),
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(Screen.Settings.route) {
+                        SettingsScreen(
+                            onNavigateBack = { navController.popBackStack() },
+                            onNoActiveInstance = {
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.Dashboard.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
+                        )
+                    }
                 }
-                fadeIn(animationSpec = tween(300)) + 
-                slideIntoContainer(direction, tween(300))
-            },
-            exitTransition = {
-                val fromIndex = bottomNavScreens.indexOfFirst { it.route == initialState.destination.route }
-                val toIndex = bottomNavScreens.indexOfFirst { it.route == targetState.destination.route }
-                val direction = if (fromIndex != -1 && toIndex != -1 && toIndex < fromIndex) {
-                    AnimatedContentTransitionScope.SlideDirection.End
-                } else {
-                    AnimatedContentTransitionScope.SlideDirection.Start
-                }
-                fadeOut(animationSpec = tween(300)) + 
-                slideOutOfContainer(direction, tween(300))
-            },
-            popEnterTransition = {
-                val fromIndex = bottomNavScreens.indexOfFirst { it.route == initialState.destination.route }
-                val toIndex = bottomNavScreens.indexOfFirst { it.route == targetState.destination.route }
-                val direction = if (fromIndex != -1 && toIndex != -1 && toIndex > fromIndex) {
-                    AnimatedContentTransitionScope.SlideDirection.Start
-                } else {
-                    AnimatedContentTransitionScope.SlideDirection.End
-                }
-                fadeIn(animationSpec = tween(300)) + 
-                slideIntoContainer(direction, tween(300))
-            },
-            popExitTransition = {
-                val fromIndex = bottomNavScreens.indexOfFirst { it.route == initialState.destination.route }
-                val toIndex = bottomNavScreens.indexOfFirst { it.route == targetState.destination.route }
-                val direction = if (fromIndex != -1 && toIndex != -1 && toIndex > fromIndex) {
-                    AnimatedContentTransitionScope.SlideDirection.Start
-                } else {
-                    AnimatedContentTransitionScope.SlideDirection.End
-                }
-                fadeOut(animationSpec = tween(300)) + 
-                slideOutOfContainer(direction, tween(300))
-            }
-        ) {
-            // Login
-            composable(Screen.Login.route) {
-                LoginScreen(
-                    onLoginSuccess = {
-                        navController.navigate(Screen.Dashboard.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
-                        }
-                    }
-                )
-            }
-            
-            // Dashboard
-            composable(Screen.Dashboard.route) {
-                DashboardScreen(
-                    onNavigateToWorkflows = {
-                        navController.navigate(Screen.Workflows.route)
-                    },
-                    onNavigateToExecutions = {
-                        navController.navigate(Screen.Executions.route)
-                    },
-                    onNavigateToSettings = {
-                        navController.navigate(Screen.Settings.route)
-                    },
-                    onNavigateToExecution = { executionId ->
-                        navController.navigate(Screen.ExecutionDetail.createRoute(executionId))
-                    }
-                )
-            }
-            
-            // Workflows
-            composable(Screen.Workflows.route) {
-                WorkflowsScreen(
-                    onNavigateToWorkflow = { workflowId ->
-                        navController.navigate(Screen.WorkflowDetail.createRoute(workflowId))
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
-                )
-            }
-            
-            // Workflow Detail
-            composable(Screen.WorkflowDetail.route) { backStackEntry ->
-                val workflowId = backStackEntry.arguments?.getString("workflowId") ?: ""
-                WorkflowDetailScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToExecution = { executionId ->
-                        navController.navigate(Screen.ExecutionDetail.createRoute(executionId))
-                    }
-                )
-            }
-            
-            // Executions
-            composable(Screen.Executions.route) {
-                ExecutionsScreen(
-                    onNavigateToExecution = { executionId ->
-                        navController.navigate(Screen.ExecutionDetail.createRoute(executionId))
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
-                )
-            }
-            
-            // Execution Detail
-            composable(
-                route = Screen.ExecutionDetail.route,
-                arguments = listOf(androidx.navigation.navArgument("executionId") { type = androidx.navigation.NavType.StringType })
-            ) { backStackEntry ->
-                val executionId = backStackEntry.arguments?.getString("executionId") ?: ""
-                ExecutionDetailScreen(
-                    executionId = executionId,
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToExecution = { newExecutionId ->
-                        navController.navigate(Screen.ExecutionDetail.createRoute(newExecutionId))
-                    }
-                )
-            }
-            
-            // Credentials
-            composable(Screen.Credentials.route) {
-                CredentialsScreen(
-                    onNavigateToCredential = { credentialId ->
-                        navController.navigate(Screen.CredentialDetail.createRoute(credentialId))
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
-                )
-            }
-            
-            // Credential Detail
-            composable(Screen.CredentialDetail.route) { backStackEntry ->
-                val credentialId = backStackEntry.arguments?.getString("credentialId") ?: ""
-                com.n8n.mobilemanager.ui.screens.credentials.CredentialDetailScreen(
-                    credentialId = credentialId,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-            
-            // Settings
-            composable(Screen.Settings.route) {
-                SettingsScreen(
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
-                )
             }
         }
     }
 }
 
 @Composable
-private fun NeumorphicBottomNavBar(
+private fun AppNavigationBar(
     navController: NavController,
     currentRoute: String?
 ) {
-    val neumorphColors = neumorphicColors()
-    val selectedIndex = bottomNavScreens.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
-    
-    // Animation fluide de l'indicateur
-    val animatedIndex by animateFloatAsState(
-        targetValue = selectedIndex.toFloat(),
-        animationSpec = spring(
-            dampingRatio = 0.7f,
-            stiffness = 150f
-        ),
-        label = "indicator_position"
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(horizontal = 24.dp, vertical = 16.dp)
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-                .neumorphicRaised(
-                    lightShadowColor = neumorphColors.lightShadow,
-                    darkShadowColor = neumorphColors.darkShadow,
-                    backgroundColor = neumorphColors.background,
-                    cornerRadius = 32.dp
-                )
-        ) {
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                val itemWidth = maxWidth / bottomNavScreens.size
-                
-                // Indicateur glissant avec dégradé
-                Box(
-                    modifier = Modifier
-                        .offset(x = itemWidth * animatedIndex)
-                        .width(itemWidth)
-                        .fillMaxHeight()
-                        .padding(vertical = 8.dp, horizontal = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        N8nPrimary.copy(alpha = 0.15f),
-                                        N8nPrimaryLight.copy(alpha = 0.08f)
-                                    )
-                                )
-                            )
+        bottomNavScreens.forEach { screen ->
+            val selected = currentRoute == screen.route
+            NavigationBarItem(
+                selected = selected,
+                onClick = { navigateToRoot(navController, screen) },
+                icon = {
+                    Icon(
+                        imageVector = if (selected) screen.iconFilled else screen.iconOutlined,
+                        contentDescription = null
                     )
-                }
-
-                // Items de navigation
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    bottomNavScreens.forEachIndexed { index, screen ->
-                        val isSelected = index == selectedIndex
-                        
-                        // Animations pour chaque item
-                        val scale by animateFloatAsState(
-                            targetValue = if (isSelected) 1.1f else 1f,
-                            animationSpec = spring(
-                                dampingRatio = 0.6f,
-                                stiffness = 300f
-                            ),
-                            label = "icon_scale_$index"
-                        )
-                        
-                        val iconColor by animateColorAsState(
-                            targetValue = if (isSelected) N8nPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
-                            animationSpec = tween(250),
-                            label = "icon_color_$index"
-                        )
-                        
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = {
-                                        if (!isSelected) {
-                                            navController.navigate(screen.route) {
-                                                popUpTo(navController.graph.findStartDestination().id) {
-                                                    saveState = true
-                                                }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        }
-                                    }
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
-                                modifier = Modifier.graphicsLayer {
-                                    scaleX = scale
-                                    scaleY = scale
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = if (isSelected) screen.iconFilled else screen.iconOutlined,
-                                    contentDescription = screen.title,
-                                    tint = iconColor,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                
-                                // Label animé qui apparaît quand sélectionné
-                                AnimatedVisibility(
-                                    visible = isSelected,
-                                    enter = fadeIn(tween(200)) + expandVertically(tween(200)),
-                                    exit = fadeOut(tween(150)) + shrinkVertically(tween(150))
-                                ) {
-                                    Text(
-                                        text = getShortLabel(screen),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = N8nPrimary,
-                                        fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+                },
+                label = { Text(screen.title) }
+            )
         }
     }
 }
 
-// Labels courts pour la barre de navigation
-private fun getShortLabel(screen: Screen): String {
-    return when (screen) {
-        Screen.Dashboard -> "Home"
-        Screen.Workflows -> "Flows"
-        Screen.Executions -> "Runs"
-        Screen.Credentials -> "Keys"
-        else -> screen.title.take(5)
+@Composable
+private fun AppNavigationRail(
+    navController: NavController,
+    currentRoute: String?
+) {
+    NavigationRail(
+        containerColor = MaterialTheme.colorScheme.surface,
+        header = {
+            androidx.compose.material3.Icon(
+                imageVector = Icons.Filled.AccountTree,
+                contentDescription = "n8n Mobile Manager",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    ) {
+        bottomNavScreens.forEach { screen ->
+            val selected = currentRoute == screen.route
+            NavigationRailItem(
+                selected = selected,
+                onClick = { navigateToRoot(navController, screen) },
+                icon = {
+                    Icon(
+                        imageVector = if (selected) screen.iconFilled else screen.iconOutlined,
+                        contentDescription = null
+                    )
+                },
+                label = { Text(screen.title) }
+            )
+        }
+    }
+}
+
+private fun navigateToRoot(navController: NavController, screen: Screen) {
+    navController.navigate(screen.route) {
+        popUpTo(Screen.Dashboard.route) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }

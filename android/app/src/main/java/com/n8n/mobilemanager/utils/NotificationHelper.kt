@@ -68,7 +68,11 @@ class NotificationHelper @Inject constructor(
         workflowId: String? = null,
         executionId: String? = null
     ) {
-        Log.d(TAG, "Attempting to show notification: $title - $body (Channel: $channelId)")
+        Log.d(
+            TAG,
+            "Attempting to show notification (channel=$channelId, " +
+                "workflowIdPresent=${workflowId != null}, executionIdPresent=${executionId != null})"
+        )
         
         try {
             val intent = Intent(context, MainActivity::class.java).apply {

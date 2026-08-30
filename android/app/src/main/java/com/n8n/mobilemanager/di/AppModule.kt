@@ -2,6 +2,10 @@ package com.n8n.mobilemanager.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.n8n.mobilemanager.BuildConfig
+import com.n8n.mobilemanager.data.local.ApiKeyCipher
 import com.n8n.mobilemanager.data.local.InstanceDao
 import com.n8n.mobilemanager.data.local.N8nDatabase
 import com.n8n.mobilemanager.data.local.PreferencesManager
@@ -37,7 +41,26 @@ object AppModule {
             N8nDatabase::class.java,
             N8nDatabase.DATABASE_NAME
         )
-            .fallbackToDestructiveMigration()
+            .addCallback(object : RoomDatabase.Callback() {
+                override fun onOpen(db: SupportSQLiteDatabase) {
+                    db.query("SELECT id, apiKey FROM instances").use { cursor ->
+                        val idColumn = cursor.getColumnIndexOrThrow("id")
+                        val apiKeyColumn = cursor.getColumnIndexOrThrow("apiKey")
+                        while (cursor.moveToNext()) {
+                            val id = cursor.getLong(idColumn)
+                            val storedApiKey = cursor.getString(apiKeyColumn)
+                            if (!ApiKeyCipher.isEncrypted(storedApiKey)) {
+                                runCatching {
+                                    db.execSQL(
+                                        "UPDATE instances SET apiKey = ? WHERE id = ?",
+                                        arrayOf(ApiKeyCipher.encrypt(storedApiKey), id)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            })
             .build()
     }
     
@@ -61,7 +84,15 @@ object AppModule {
     @Singleton
     fun provideLoggingInterceptor(): HttpLoggingInterceptor {
         return HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BASIC
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+            redactHeader("Authorization")
+            redactHeader("Cookie")
+            redactHeader("Set-Cookie")
+            redactHeader("X-N8N-API-KEY")
         }
     }
     
@@ -85,29 +116,31 @@ class ApiServiceFactory(
         val baseUrl = instance.baseUrl.trimEnd('/') + "/"
         val cacheKey = "${baseUrl}:${instance.apiKey}"
         
-        val retrofit = retrofitCache.getOrPut(cacheKey) {
-            val authInterceptor = Interceptor { chain ->
-                val request = chain.request().newBuilder()
-                    .addHeader("X-N8N-API-KEY", instance.apiKey)
-                    .addHeader("Accept", "application/json")
-                    .addHeader("Content-Type", "application/json")
+        val retrofit = synchronized(retrofitCache) {
+            retrofitCache.getOrPut(cacheKey) {
+                val authInterceptor = Interceptor { chain ->
+                    val request = chain.request().newBuilder()
+                        .addHeader("X-N8N-API-KEY", instance.apiKey)
+                        .addHeader("Accept", "application/json")
+                        .addHeader("Content-Type", "application/json")
+                        .build()
+                    chain.proceed(request)
+                }
+
+                val okHttpClient = OkHttpClient.Builder()
+                    .addInterceptor(authInterceptor)
+                    .addInterceptor(loggingInterceptor)
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(45, TimeUnit.SECONDS)
+                    .writeTimeout(30, TimeUnit.SECONDS)
                     .build()
-                chain.proceed(request)
+
+                Retrofit.Builder()
+                    .baseUrl(baseUrl)
+                    .client(okHttpClient)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
             }
-            
-            val okHttpClient = OkHttpClient.Builder()
-                .addInterceptor(authInterceptor)
-                .addInterceptor(loggingInterceptor)
-                .connectTimeout(60, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(60, TimeUnit.SECONDS)
-                .build()
-            
-            Retrofit.Builder()
-                .baseUrl(baseUrl)
-                .client(okHttpClient)
-                .addConverterFactory(GsonConverterFactory.create())
-                .build()
         }
         
         return retrofit.create(N8nApiService::class.java)
@@ -146,6 +179,8 @@ class ApiServiceFactory(
     }
     
     fun clearCache() {
-        retrofitCache.clear()
+        synchronized(retrofitCache) {
+            retrofitCache.clear()
+        }
     }
 }

@@ -15,13 +15,10 @@ import android.os.Build
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.lifecycleScope
 import com.n8n.mobilemanager.data.local.PreferencesManager
 import com.n8n.mobilemanager.ui.navigation.N8nNavigation
 import com.n8n.mobilemanager.ui.theme.N8nMobileManagerTheme
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -30,6 +27,7 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var preferencesManager: PreferencesManager
 
+    @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         // Install splash screen before super.onCreate
         val splashScreen = installSplashScreen()
@@ -43,13 +41,10 @@ class MainActivity : ComponentActivity() {
         var isLoading = true
         splashScreen.setKeepOnScreenCondition { isLoading }
         
-        // Load preferences
-        lifecycleScope.launch {
-            checkNotificationPermission()
-            // Give time for initial data load
-            kotlinx.coroutines.delay(500)
-            isLoading = false
-        }
+        // Permission prompts should not hold the splash screen open. The app can
+        // render immediately while the system handles the request.
+        checkNotificationPermission()
+        isLoading = false
 
         setContent {
             // Observe theme preference

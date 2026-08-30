@@ -11,96 +11,87 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// Neumorphic Dark Color Scheme
 private val DarkColorScheme = darkColorScheme(
-    primary = N8nPrimary,
-    onPrimary = Color.White,
-    primaryContainer = N8nPrimary.copy(alpha = 0.2f),
-    onPrimaryContainer = N8nPrimary,
-    
-    secondary = N8nAccent,
-    onSecondary = N8nSecondary,
-    secondaryContainer = N8nAccent.copy(alpha = 0.2f),
-    onSecondaryContainer = N8nAccent,
-    
-    tertiary = N8nPrimaryVariant,
-    onTertiary = Color.White,
-    
+    primary = Color(0xFFFFB4A8),
+    onPrimary = Color(0xFF690F05),
+    primaryContainer = Color(0xFF8F271B),
+    onPrimaryContainer = Color(0xFFFFDAD4),
+    secondary = Color(0xFF50D9C8),
+    onSecondary = Color(0xFF003731),
+    secondaryContainer = Color(0xFF005047),
+    onSecondaryContainer = Color(0xFF73F8E5),
+    tertiary = Color(0xFFD0BCFF),
+    onTertiary = Color(0xFF36275D),
     background = NeuroBackgroundDark,
     onBackground = TextPrimaryDark,
-    
     surface = NeuroSurfaceDark,
     onSurface = TextPrimaryDark,
-    surfaceVariant = NeuroSurfaceDark,
+    surfaceVariant = Color(0xFF4A454A),
     onSurfaceVariant = TextSecondaryDark,
-    
-    error = StatusError,
-    onError = Color.White,
-    errorContainer = StatusError.copy(alpha = 0.2f),
-    onErrorContainer = StatusError,
-    
-    outline = TextSecondaryDark.copy(alpha = 0.3f),
-    outlineVariant = TextSecondaryDark.copy(alpha = 0.15f)
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005),
+    errorContainer = Color(0xFF93000A),
+    onErrorContainer = Color(0xFFFFDAD6),
+    outline = Color(0xFF958F95),
+    outlineVariant = Color(0xFF4A454A)
 )
 
-// Neumorphic Light Color Scheme
 private val LightColorScheme = lightColorScheme(
     primary = N8nPrimary,
     onPrimary = Color.White,
-    primaryContainer = N8nPrimary.copy(alpha = 0.15f),
-    onPrimaryContainer = N8nPrimary,
-    
+    primaryContainer = Color(0xFFFFDAD4),
+    onPrimaryContainer = Color(0xFF410002),
     secondary = N8nSecondary,
     onSecondary = Color.White,
-    secondaryContainer = N8nSecondary.copy(alpha = 0.1f),
-    onSecondaryContainer = N8nSecondary,
-    
-    tertiary = N8nAccent,
+    secondaryContainer = Color(0xFFAAEEE4),
+    onSecondaryContainer = Color(0xFF00201C),
+    tertiary = Color(0xFF6750A4),
     onTertiary = Color.White,
-    
     background = NeuroBackgroundLight,
     onBackground = TextPrimaryLight,
-    
     surface = NeuroSurfaceLight,
     onSurface = TextPrimaryLight,
-    surfaceVariant = NeuroSurfaceLight,
+    surfaceVariant = Color(0xFFE8E2E5),
     onSurfaceVariant = TextSecondaryLight,
-    
     error = StatusError,
     onError = Color.White,
-    errorContainer = StatusError.copy(alpha = 0.15f),
-    onErrorContainer = StatusError,
-    
-    outline = TextSecondaryLight.copy(alpha = 0.3f),
-    outlineVariant = TextSecondaryLight.copy(alpha = 0.15f)
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF410002),
+    outline = Color(0xFF7A7579),
+    outlineVariant = Color(0xFFCBC5C9)
 )
 
 @Composable
 fun N8nMobileManagerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is disabled for neumorphic design consistency
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
     val colorScheme = when {
-        // We disable dynamic colors for neumorphic design as it needs specific
-        // color relationships for the shadow effects to work properly
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && darkTheme -> {
+            dynamicDarkColorScheme(context)
+        }
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            dynamicLightColorScheme(context)
+        }
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
-    
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
-            val insetsController = WindowCompat.getInsetsController(window, view)
-            insetsController.isAppearanceLightStatusBars = !darkTheme
-            insetsController.isAppearanceLightNavigationBars = !darkTheme
+            (view.context as? Activity)?.window?.let { window ->
+                WindowCompat.getInsetsController(window, view).apply {
+                    isAppearanceLightStatusBars = !darkTheme
+                    isAppearanceLightNavigationBars = !darkTheme
+                }
+            }
         }
     }
 
